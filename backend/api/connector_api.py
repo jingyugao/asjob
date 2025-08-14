@@ -1,9 +1,9 @@
 from fastapi import APIRouter, Depends, HTTPException, Query
-from sqlalchemy.orm import Session
+from pymysql.cursors import DictCursor
 from typing import List, Optional
-from ..database.session import get_db_session
-from ..database.service.connector_service import ConnectorService
-from ..database.schema.connector_schema import (
+from backend.database.session import get_db_cursor
+from backend.database.service.connector_service import ConnectorService
+from backend.database.schema.connector_schema import (
     ConnectorCreate,
     ConnectorUpdate,
     ConnectorResponse,
@@ -14,10 +14,10 @@ router = APIRouter()
 
 @router.post("/", response_model=ConnectorResponse)
 def create_connector(
-    connector: ConnectorCreate, session: Session = Depends(get_db_session)
+    connector: ConnectorCreate, cursor: DictCursor = Depends(get_db_cursor)
 ):
     """创建连接器"""
-    service = ConnectorService(session)
+    service = ConnectorService(cursor)
     try:
         return service.create_connector(connector.dict())
     except ValueError as e:
@@ -27,9 +27,9 @@ def create_connector(
 
 
 @router.get("/{connector_id}", response_model=ConnectorResponse)
-def get_connector(connector_id: int, session: Session = Depends(get_db_session)):
+def get_connector(connector_id: int, cursor: DictCursor = Depends(get_db_cursor)):
     """获取连接器"""
-    service = ConnectorService(session)
+    service = ConnectorService(cursor)
     connector = service.get_connector(connector_id)
     if not connector:
         raise HTTPException(status_code=404, detail="连接器不存在")
@@ -42,10 +42,10 @@ def list_connectors(
     limit: int = Query(100, ge=1, le=1000),
     db_type: Optional[str] = Query(None),
     active_only: bool = Query(False),
-    session: Session = Depends(get_db_session),
+    cursor: DictCursor = Depends(get_db_cursor),
 ):
     """列出连接器"""
-    service = ConnectorService(session)
+    service = ConnectorService(cursor)
 
     if active_only:
         return service.list_active_connectors()
@@ -59,10 +59,10 @@ def list_connectors(
 def update_connector(
     connector_id: int,
     connector: ConnectorUpdate,
-    session: Session = Depends(get_db_session),
+    cursor: DictCursor = Depends(get_db_cursor),
 ):
     """更新连接器"""
-    service = ConnectorService(session)
+    service = ConnectorService(cursor)
     try:
         updated = service.update_connector(
             connector_id, connector.dict(exclude_unset=True)
@@ -77,36 +77,36 @@ def update_connector(
 
 
 @router.delete("/{connector_id}")
-def delete_connector(connector_id: int, session: Session = Depends(get_db_session)):
+def delete_connector(connector_id: int, cursor: DictCursor = Depends(get_db_cursor)):
     """删除连接器"""
-    service = ConnectorService(session)
+    service = ConnectorService(cursor)
     if not service.delete_connector(connector_id):
         raise HTTPException(status_code=404, detail="连接器不存在")
     return {"message": "删除成功"}
 
 
 @router.post("/{connector_id}/activate")
-def activate_connector(connector_id: int, session: Session = Depends(get_db_session)):
+def activate_connector(connector_id: int, cursor: DictCursor = Depends(get_db_cursor)):
     """激活连接器"""
-    service = ConnectorService(session)
+    service = ConnectorService(cursor)
     if not service.activate_connector(connector_id):
         raise HTTPException(status_code=404, detail="连接器不存在")
     return {"message": "激活成功"}
 
 
 @router.post("/{connector_id}/deactivate")
-def deactivate_connector(connector_id: int, session: Session = Depends(get_db_session)):
+def deactivate_connector(connector_id: int, cursor: DictCursor = Depends(get_db_cursor)):
     """停用连接器"""
-    service = ConnectorService(session)
+    service = ConnectorService(cursor)
     if not service.deactivate_connector(connector_id):
         raise HTTPException(status_code=404, detail="连接器不存在")
     return {"message": "停用成功"}
 
 
 @router.post("/{connector_id}/test")
-def test_connector(connector_id: int, session: Session = Depends(get_db_session)):
+def test_connector(connector_id: int, cursor: DictCursor = Depends(get_db_cursor)):
     """测试连接器连接"""
-    service = ConnectorService(session)
+    service = ConnectorService(cursor)
     if not service.get_connector(connector_id):
         raise HTTPException(status_code=404, detail="连接器不存在")
 
@@ -115,14 +115,14 @@ def test_connector(connector_id: int, session: Session = Depends(get_db_session)
 
 
 @router.get("/stats/summary")
-def get_connector_stats(session: Session = Depends(get_db_session)):
+def get_connector_stats(cursor: DictCursor = Depends(get_db_cursor)):
     """获取连接器统计信息"""
-    service = ConnectorService(session)
+    service = ConnectorService(cursor)
     return service.get_connector_stats()
 
 
 @router.get("/search/{keyword}", response_model=List[ConnectorResponse])
-def search_connectors(keyword: str, session: Session = Depends(get_db_session)):
+def search_connectors(keyword: str, cursor: DictCursor = Depends(get_db_cursor)):
     """搜索连接器"""
-    service = ConnectorService(session)
+    service = ConnectorService(cursor)
     return service.search_connectors(keyword)

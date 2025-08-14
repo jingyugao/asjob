@@ -1,0 +1,277 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>连接字符串功能演示</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        h1 {
+            color: #333;
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        .demo-section {
+            margin-bottom: 30px;
+            padding: 20px;
+            border: 1px solid #e0e0e0;
+            border-radius: 6px;
+            background-color: #fafafa;
+        }
+        .input-group {
+            margin-bottom: 15px;
+        }
+        label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+            color: #555;
+        }
+        input[type="text"] {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 14px;
+            box-sizing: border-box;
+        }
+        button {
+            background-color: #409eff;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+        }
+        button:hover {
+            background-color: #337ecc;
+        }
+        .result {
+            margin-top: 20px;
+            padding: 15px;
+            background-color: #f0f9ff;
+            border: 1px solid #b3d8ff;
+            border-radius: 6px;
+        }
+        .result h3 {
+            margin-top: 0;
+            color: #409eff;
+        }
+        .result-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+        }
+        .result-item {
+            padding: 8px;
+            background-color: white;
+            border-radius: 4px;
+            border: 1px solid #e4e7ed;
+        }
+        .result-label {
+            font-weight: bold;
+            color: #606266;
+        }
+        .result-value {
+            color: #303133;
+            margin-left: 10px;
+        }
+        .examples {
+            background-color: #f8f9fa;
+            padding: 20px;
+            border-radius: 6px;
+            border-left: 4px solid #409eff;
+        }
+        .examples h3 {
+            margin-top: 0;
+            color: #409eff;
+        }
+        .example-item {
+            margin: 10px 0;
+            padding: 10px;
+            background-color: white;
+            border-radius: 4px;
+            border: 1px solid #e4e7ed;
+            cursor: pointer;
+            transition: background-color 0.2s;
+        }
+        .example-item:hover {
+            background-color: #f5f7fa;
+        }
+        .example-item code {
+            color: #409eff;
+            font-weight: bold;
+        }
+        .error {
+            color: #f56c6c;
+            background-color: #fef0f0;
+            padding: 10px;
+            border-radius: 4px;
+            border: 1px solid #fbc4c4;
+            margin-top: 10px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔗 数据库连接字符串功能演示</h1>
+        
+        <div class="demo-section">
+            <h2>📝 连接字符串解析器</h2>
+            <div class="input-group">
+                <label for="connectionString">连接字符串:</label>
+                <input 
+                    type="text" 
+                    id="connectionString" 
+                    placeholder="例如: mysql://root:password@localhost:3306/database"
+                >
+            </div>
+            <button onclick="parseConnectionString()">解析连接字符串</button>
+            
+            <div id="result" class="result" style="display: none;">
+                <h3>✅ 解析结果</h3>
+                <div class="result-grid">
+                    <div class="result-item">
+                        <span class="result-label">主机地址:</span>
+                        <span class="result-value" id="host">-</span>
+                    </div>
+                    <div class="result-item">
+                        <span class="result-label">端口:</span>
+                        <span class="result-value" id="port">-</span>
+                    </div>
+                    <div class="result-item">
+                        <span class="result-label">用户名:</span>
+                        <span class="result-value" id="username">-</span>
+                    </div>
+                    <div class="result-item">
+                        <span class="result-label">数据库:</span>
+                        <span class="result-value" id="database">-</span>
+                    </div>
+                    <div class="result-item">
+                        <span class="result-label">数据库类型:</span>
+                        <span class="result-value" id="dbType">-</span>
+                    </div>
+                    <div class="result-item">
+                        <span class="result-label">密码:</span>
+                        <span class="result-value" id="password">-</span>
+                    </div>
+                </div>
+            </div>
+            
+            <div id="error" class="error" style="display: none;"></div>
+        </div>
+        
+        <div class="examples">
+            <h3>💡 连接字符串示例</h3>
+            <p>点击下面的示例来测试解析功能：</p>
+            
+            <div class="example-item" onclick="setExample('mysql://root:password@localhost:3306/asjob')">
+                <strong>基本连接:</strong> <code>mysql://root:password@localhost:3306/asjob</code>
+            </div>
+            
+            <div class="example-item" onclick="setExample('mysql://root:Str0ngP@ssw0rd!@localhost:3306')">
+                <strong>特殊字符密码:</strong> <code>mysql://root:Str0ngP@ssw0rd!@localhost:3306</code>
+            </div>
+            
+            <div class="example-item" onclick="setExample('mysql://admin@prod-db.com:3307/production')">
+                <strong>自定义端口:</strong> <code>mysql://admin@prod-db.com:3307/production</code>
+            </div>
+            
+            <div class="example-item" onclick="setExample('mysql://user:pass@doris-cluster:9030/analytics')">
+                <strong>Doris数据库:</strong> <code>mysql://user:pass@doris-cluster:9030/analytics</code>
+            </div>
+            
+            <div class="example-item" onclick="setExample('mysql://root@localhost')">
+                <strong>无密码无数据库:</strong> <code>mysql://root@localhost</code>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        function parseConnectionString() {
+            const input = document.getElementById('connectionString').value.trim();
+            const resultDiv = document.getElementById('result');
+            const errorDiv = document.getElementById('error');
+            
+            if (!input) {
+                showError('请输入连接字符串');
+                return;
+            }
+            
+            try {
+                // 解析连接字符串
+                const url = new URL(input);
+                
+                if (url.protocol !== 'mysql:') {
+                    throw new Error('只支持MySQL协议');
+                }
+                
+                const host = url.hostname;
+                const port = url.port || 3306;
+                const username = url.username || '';
+                const password = url.password || '';
+                
+                // 从路径中提取数据库名
+                let database = url.pathname.slice(1); // 移除开头的 '/'
+                if (!database) {
+                    database = 'asjob'; // 默认数据库名
+                }
+                
+                // 根据主机名和端口判断数据库类型
+                let dbType = 'mysql';
+                if (host.includes('doris') || port === 9030) {
+                    dbType = 'doris';
+                }
+                
+                // 显示结果
+                document.getElementById('host').textContent = host;
+                document.getElementById('port').textContent = port;
+                document.getElementById('username').textContent = username;
+                document.getElementById('database').textContent = database;
+                document.getElementById('dbType').textContent = dbType;
+                document.getElementById('password').textContent = password ? '***' : '无';
+                
+                resultDiv.style.display = 'block';
+                errorDiv.style.display = 'none';
+                
+            } catch (error) {
+                showError('连接字符串格式不正确: ' + error.message);
+            }
+        }
+        
+        function setExample(example) {
+            document.getElementById('connectionString').value = example;
+            parseConnectionString();
+        }
+        
+        function showError(message) {
+            const errorDiv = document.getElementById('error');
+            const resultDiv = document.getElementById('result');
+            
+            errorDiv.textContent = message;
+            errorDiv.style.display = 'block';
+            resultDiv.style.display = 'none';
+        }
+        
+        // 页面加载完成后自动解析示例
+        window.addEventListener('load', function() {
+            // 设置默认示例
+            document.getElementById('connectionString').value = 'mysql://root:password@localhost:3306/asjob';
+            parseConnectionString();
+        });
+    </script>
+</body>
+</html>

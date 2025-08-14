@@ -1,14 +1,14 @@
 from typing import List, Optional, Dict, Any
-from sqlalchemy.orm import Session
-from ..dao.connector_dao import ConnectorDAO
-from ..model.connector import ConnectorModel
+from pymysql.cursors import DictCursor
+from backend.database.dao.connector_dao import ConnectorDAO
+from backend.database.model.connector import ConnectorModel
 
 
 class ConnectorService:
     """连接器服务层"""
 
-    def __init__(self, session: Session):
-        self.dao = ConnectorDAO(session)
+    def __init__(self, cursor: DictCursor):
+        self.dao = ConnectorDAO(cursor)
 
     def create_connector(self, connector_data: Dict[str, Any]) -> ConnectorModel:
         """创建连接器"""

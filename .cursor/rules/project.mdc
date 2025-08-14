@@ -55,6 +55,7 @@ ASJob 是一个智能任务调度和作业管理系统，提供分布式任务�
 ## 文件目录
 - md文件放到doc目录中
 - test文件放到backend tests目录中
+- 临时文件放到tmp目录中
 
 alwaysApply: true
 description:

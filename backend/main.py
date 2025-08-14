@@ -2,9 +2,17 @@ from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from typing import List, Dict, Any, Optional
-from connectors import MySQLConnector, DorisConnector
-from api import api_router
-from database.init_db import init_database
+import sys
+import os
+
+# 添加项目根目录到Python路径
+project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+if project_root not in sys.path:
+    sys.path.insert(0, project_root)
+
+from backend.connectors import MySQLConnector, DorisConnector
+from backend.api import api_router
+from backend.database.init_db import init_database
 
 app = FastAPI(title="Data Development Platform", version="1.0.0")
 

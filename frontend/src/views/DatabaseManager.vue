@@ -195,9 +195,52 @@
     <el-dialog
       v-model="showAddDialog"
       title="添加数据库连接"
-      width="500px"
+      width="600px"
     >
+      <!-- 连接方式选择 -->
+      <div class="connection-method-selector">
+        <el-radio-group v-model="connectionMethod" @change="onConnectionMethodChange">
+          <el-radio label="manual">手动输入</el-radio>
+          <el-radio label="string">连接字符串</el-radio>
+        </el-radio-group>
+      </div>
+
+      <!-- 连接字符串输入 -->
+      <div v-if="connectionMethod === 'string'" class="connection-string-input">
+        <el-form-item label="连接名称" prop="name">
+          <el-input v-model="newConnection.name" placeholder="输入连接名称" />
+        </el-form-item>
+        
+        <el-form-item label="连接字符串" prop="connectionString">
+          <el-input
+            v-model="connectionString"
+            placeholder="例如: mysql://root:password@localhost:3306/database"
+            @input="parseConnectionString"
+          />
+          <div class="connection-string-help">
+            <el-text size="small" type="info">
+              格式: mysql://username:password@host:port/database
+            </el-text>
+          </div>
+        </el-form-item>
+        
+        <!-- 解析结果显示 -->
+        <div v-if="parsedConnection" class="parsed-connection">
+          <el-divider content-position="left">解析结果</el-divider>
+          <el-descriptions :column="2" border>
+            <el-descriptions-item label="主机地址">{{ parsedConnection.host }}</el-descriptions-item>
+            <el-descriptions-item label="端口">{{ parsedConnection.port }}</el-descriptions-item>
+            <el-descriptions-item label="用户名">{{ parsedConnection.username }}</el-descriptions-item>
+            <el-descriptions-item label="数据库">{{ parsedConnection.database }}</el-descriptions-item>
+            <el-descriptions-item label="数据库类型">{{ parsedConnection.db_type }}</el-descriptions-item>
+            <el-descriptions-item label="密码">{{ parsedConnection.password ? '***' : '无' }}</el-descriptions-item>
+          </el-descriptions>
+        </div>
+      </div>
+
+      <!-- 手动输入表单 -->
       <el-form
+        v-if="connectionMethod === 'manual'"
         ref="connectionFormRef"
         :model="newConnection"
         :rules="connectionRules"
@@ -269,6 +312,11 @@ export default {
     const sqlQuery = ref('')
     const queryResult = ref(null)
 
+    // 连接字符串相关变量
+    const connectionMethod = ref('manual')
+    const connectionString = ref('')
+    const parsedConnection = ref(null)
+
     const newConnection = reactive({
       name: '',
       host: 'localhost',
@@ -287,6 +335,98 @@ export default {
       password: [{ required: true, message: '请输入密码', trigger: 'blur' }],
       database: [{ required: true, message: '请输入数据库名', trigger: 'blur' }],
       db_type: [{ required: true, message: '请选择数据库类型', trigger: 'change' }]
+    }
+
+    // 连接字符串解析函数
+    const parseConnectionString = (value) => {
+      if (!value || !value.trim()) {
+        parsedConnection.value = null
+        return
+      }
+
+      try {
+        // 解析连接字符串 mysql://username:password@host:port/database
+        const url = new URL(value)
+        
+        if (url.protocol !== 'mysql:') {
+          throw new Error('只支持MySQL协议')
+        }
+
+        const host = url.hostname
+        const port = url.port || 3306
+        const username = url.username || ''
+        const password = url.password || ''
+        
+        // 从路径中提取数据库名
+        let database = url.pathname.slice(1) // 移除开头的 '/'
+        if (!database) {
+          database = 'asjob' // 默认数据库名
+        }
+
+        // 根据主机名判断数据库类型
+        let db_type = 'mysql'
+        if (host.includes('doris') || port === 9030) {
+          db_type = 'doris'
+        }
+
+        parsedConnection.value = {
+          host,
+          port: parseInt(port),
+          username,
+          password,
+          database,
+          db_type
+        }
+
+        // 自动填充连接名称
+        if (!newConnection.name) {
+          newConnection.name = `${db_type}_${host}_${database}`
+        }
+
+      } catch (error) {
+        console.error('连接字符串解析失败:', error)
+        parsedConnection.value = null
+        ElMessage.warning('连接字符串格式不正确，请检查格式')
+      }
+    }
+
+    // 连接方式改变处理
+    const onConnectionMethodChange = (method) => {
+      if (method === 'string') {
+        // 切换到连接字符串模式时，清空手动输入的表单
+        Object.assign(newConnection, {
+          name: '',
+          host: 'localhost',
+          port: 3306,
+          username: '',
+          password: '',
+          database: '',
+          db_type: 'mysql'
+        })
+      } else {
+        // 切换到手动输入模式时，清空连接字符串
+        connectionString.value = ''
+        parsedConnection.value = null
+      }
+    }
+
+    // 重置表单
+    const resetForm = () => {
+      Object.assign(newConnection, {
+        name: '',
+        host: 'localhost',
+        port: 3306,
+        username: '',
+        password: '',
+        database: '',
+        db_type: 'mysql'
+      })
+      connectionString.value = ''
+      parsedConnection.value = null
+      connectionMethod.value = 'manual'
+      if (connectionFormRef.value) {
+        connectionFormRef.value.resetFields()
+      }
     }
 
     // 计算属性
@@ -315,8 +455,32 @@ export default {
 
     const addConnection = async () => {
       try {
-        await connectionFormRef.value.validate()
-        await axios.post('/api/connections', newConnection)
+        let connectionData = {}
+
+        if (connectionMethod.value === 'string') {
+          // 连接字符串模式
+          if (!parsedConnection.value) {
+            ElMessage.error('请先输入有效的连接字符串')
+            return
+          }
+          
+          // 验证连接名称
+          if (!newConnection.name.trim()) {
+            ElMessage.error('请输入连接名称')
+            return
+          }
+
+          connectionData = {
+            name: newConnection.name,
+            ...parsedConnection.value
+          }
+        } else {
+          // 手动输入模式
+          await connectionFormRef.value.validate()
+          connectionData = { ...newConnection }
+        }
+
+        await axios.post('/api/connections', connectionData)
         ElMessage.success('连接添加成功')
         showAddDialog.value = false
         resetForm()
@@ -447,19 +611,6 @@ export default {
       queryResult.value = null
     }
 
-    const resetForm = () => {
-      Object.assign(newConnection, {
-        name: '',
-        host: 'localhost',
-        port: 3306,
-        username: '',
-        password: '',
-        database: '',
-        db_type: 'mysql'
-      })
-      connectionFormRef.value?.resetFields()
-    }
-
     onMounted(() => {
       loadConnections()
     })
@@ -492,7 +643,13 @@ export default {
       handleSizeChange,
       handleCurrentChange,
       executeSQL,
-      clearSQL
+      clearSQL,
+      connectionMethod,
+      connectionString,
+      parsedConnection,
+      parseConnectionString,
+      onConnectionMethodChange,
+      resetForm
     }
   }
 }
@@ -588,5 +745,39 @@ export default {
 .query-result h3 {
   margin-bottom: 15px;
   color: #303133;
+}
+
+/* 连接字符串相关样式 */
+.connection-method-selector {
+  margin-bottom: 20px;
+  padding: 15px;
+  background-color: #f5f7fa;
+  border-radius: 6px;
+  border: 1px solid #e4e7ed;
+}
+
+.connection-string-input {
+  margin-bottom: 20px;
+}
+
+.connection-string-help {
+  margin-top: 8px;
+  color: #909399;
+}
+
+.parsed-connection {
+  margin-top: 20px;
+  padding: 15px;
+  background-color: #f0f9ff;
+  border-radius: 6px;
+  border: 1px solid #b3d8ff;
+}
+
+.parsed-connection .el-divider {
+  margin: 0 0 15px 0;
+}
+
+.parsed-connection .el-descriptions {
+  margin-top: 10px;
 }
 </style>

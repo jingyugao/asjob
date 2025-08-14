@@ -5,6 +5,8 @@
 - 在database/model中定义数据库对象
 - 测试代码单独放到tests目录下
 - 相关命令放到makefile文件中
+- 所有的api接口都必须定义request/response，代码放在api/model目录
+
 ## 代码风格
 - 遵循 PEP 8 代码风格指南
 - 使用 4 个空格进行缩进，不使用制表符

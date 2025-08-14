@@ -1,29 +1,51 @@
-from sqlalchemy import Column, Integer, String, DateTime, Text, Boolean
-from sqlalchemy.sql import func
-from ..session import Base
+from dataclasses import dataclass
+from typing import Optional
+from datetime import datetime
 
 
-class ConnectorModel(Base):
+@dataclass
+class ConnectorModel:
     """连接器数据模型"""
-
-    __tablename__ = "connectors"
-
-    id = Column(Integer, primary_key=True, index=True, autoincrement=True)
-    name = Column(String(100), nullable=False, unique=True, comment="连接器名称")
-    db_type = Column(String(50), nullable=False, comment="数据库类型")
-    host = Column(String(255), nullable=False, comment="主机地址")
-    port = Column(Integer, nullable=False, comment="端口")
-    username = Column(String(100), nullable=False, comment="用户名")
-    password = Column(String(255), nullable=False, comment="密码")
-    database = Column(String(100), nullable=False, comment="数据库名")
-    description = Column(Text, comment="描述")
-    is_active = Column(Boolean, default=True, comment="是否激活")
-    created_at = Column(
-        DateTime(timezone=True), server_default=func.now(), comment="创建时间"
-    )
-    updated_at = Column(
-        DateTime(timezone=True), onupdate=func.now(), comment="更新时间"
-    )
-
+    
+    id: Optional[int] = None
+    name: str = ""
+    db_type: str = ""
+    host: str = ""
+    port: int = 0
+    username: str = ""
+    password: str = ""
+    database_name: str = ""
+    description: Optional[str] = None
+    is_active: bool = True
+    created_at: Optional[datetime] = None
+    updated_at: Optional[datetime] = None
+    
     def __repr__(self):
         return f"<ConnectorModel(id={self.id}, name='{self.name}', db_type='{self.db_type}')>"
+    
+    @classmethod
+    def from_dict(cls, data: dict) -> 'ConnectorModel':
+        """从字典创建模型实例"""
+        # 处理字段名映射
+        if 'database' in data:
+            data['database_name'] = data.pop('database')
+        
+        return cls(**data)
+    
+    def to_dict(self) -> dict:
+        """转换为字典"""
+        data = {
+            'id': self.id,
+            'name': self.name,
+            'db_type': self.db_type,
+            'host': self.host,
+            'port': self.port,
+            'username': self.username,
+            'password': self.password,
+            'database': self.database_name,  # 保持API兼容性
+            'description': self.description,
+            'is_active': self.is_active,
+            'created_at': self.created_at,
+            'updated_at': self.updated_at
+        }
+        return {k: v for k, v in data.items() if v is not None}

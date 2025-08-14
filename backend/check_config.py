@@ -12,9 +12,9 @@ from pathlib import Path
 project_root = Path(__file__).parent
 sys.path.insert(0, str(project_root))
 
-from database.config import DatabaseConfig
-from database.session import get_connection_info
-from database.init_db import test_connection
+from backend.database.config import DatabaseConfig
+from backend.database.session import get_connection_info
+from backend.database.init_db import test_connection
 
 
 def check_environment():
@@ -86,7 +86,6 @@ def check_database_connection():
         connection_info = get_connection_info()
         print("连接信息:")
         print(f"  MySQL DNS: {connection_info['mysql_dns']}")
-        print(f"  SQLAlchemy URL: {connection_info['sqlalchemy_url']}")
 
         # 测试连接
         if test_connection():

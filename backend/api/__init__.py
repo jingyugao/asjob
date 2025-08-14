@@ -1,5 +1,5 @@
 from fastapi import APIRouter
-from .connector_api import router as connector_router
+from backend.api.connector_api import router as connector_router
 
 # 创建主路由
 api_router = APIRouter(prefix="/api/v1")
