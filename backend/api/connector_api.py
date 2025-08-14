@@ -3,7 +3,7 @@ from pymysql.cursors import DictCursor
 from typing import List, Optional
 from backend.database.session import get_db_cursor
 from backend.database.service.connector_service import ConnectorService
-from backend.database.schema.connector_schema import (
+from backend.api.model.connector import (
     ConnectorCreate,
     ConnectorUpdate,
     ConnectorResponse,
@@ -95,7 +95,9 @@ def activate_connector(connector_id: int, cursor: DictCursor = Depends(get_db_cu
 
 
 @router.post("/{connector_id}/deactivate")
-def deactivate_connector(connector_id: int, cursor: DictCursor = Depends(get_db_cursor)):
+def deactivate_connector(
+    connector_id: int, cursor: DictCursor = Depends(get_db_cursor)
+):
     """停用连接器"""
     service = ConnectorService(cursor)
     if not service.deactivate_connector(connector_id):

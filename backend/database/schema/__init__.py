@@ -1,3 +1,3 @@
-from .connector_schema import ConnectorCreate, ConnectorUpdate, ConnectorResponse
+from .connector_schema import ConnectorBase
 
-__all__ = ["ConnectorCreate", "ConnectorUpdate", "ConnectorResponse"]
+__all__ = ["ConnectorBase"]

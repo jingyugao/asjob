@@ -1,0 +1,38 @@
+from pydantic import BaseModel, Field
+from typing import Optional
+from datetime import datetime
+from backend.database.schema.connector_schema import ConnectorBase
+
+
+class ConnectorCreate(ConnectorBase):
+    """创建连接器请求模型"""
+
+    pass
+
+
+class ConnectorUpdate(BaseModel):
+    """更新连接器请求模型"""
+
+    name: Optional[str] = Field(
+        None, min_length=1, max_length=100, description="连接器名称"
+    )
+    db_type: Optional[str] = Field(None, description="数据库类型")
+    host: Optional[str] = Field(None, description="主机地址")
+    port: Optional[int] = Field(None, ge=1, le=65535, description="端口")
+    username: Optional[str] = Field(None, description="用户名")
+    password: Optional[str] = Field(None, description="密码")
+    database: Optional[str] = Field(None, description="数据库名")
+    description: Optional[str] = Field(None, description="描述")
+    is_active: Optional[bool] = Field(None, description="是否激活")
+
+
+class ConnectorResponse(ConnectorBase):
+    """连接器响应模型"""
+
+    id: int
+    is_active: bool
+    created_at: datetime
+    updated_at: Optional[datetime] = None
+
+    class Config:
+        from_attributes = True

@@ -54,7 +54,9 @@ class MySQLConnector(DatabaseConnector):
         except Exception as e:
             raise Exception(f"Failed to get table structure: {str(e)}")
 
-    def execute_query(self, sql: str, params: Optional[Dict[str, Any]] = None) -> List[Dict[str, Any]]:
+    def execute_query(
+        self, sql: str, params: Optional[Dict[str, Any]] = None
+    ) -> List[Dict[str, Any]]:
         """执行SQL查询（返回完整结果）"""
         try:
             with self.get_connection() as connection:
@@ -67,7 +69,9 @@ class MySQLConnector(DatabaseConnector):
         except Exception as e:
             raise Exception(f"Failed to execute query: {str(e)}")
 
-    def execute_query_iterator(self, sql: str, params: Optional[Dict[str, Any]] = None, batch_size: int = 1000) -> Iterator[List[Dict[str, Any]]]:
+    def execute_query_iterator(
+        self, sql: str, params: Optional[Dict[str, Any]] = None, batch_size: int = 1000
+    ) -> Iterator[List[Dict[str, Any]]]:
         """执行SQL查询（返回迭代器，分批获取结果）"""
         try:
             with self.get_connection() as connection:
@@ -76,7 +80,7 @@ class MySQLConnector(DatabaseConnector):
                         cursor.execute(sql, params)
                     else:
                         cursor.execute(sql)
-                    
+
                     while True:
                         batch = cursor.fetchmany(batch_size)
                         if not batch:
@@ -99,12 +103,16 @@ class MySQLConnector(DatabaseConnector):
         except Exception as e:
             raise Exception(f"Failed to execute update: {str(e)}")
 
-    def get_table_data(self, table_name: str, limit: int = 100, offset: int = 0) -> List[Dict[str, Any]]:
+    def get_table_data(
+        self, table_name: str, limit: int = 100, offset: int = 0
+    ) -> List[Dict[str, Any]]:
         """获取表数据"""
         sql = f"SELECT * FROM {table_name} LIMIT {limit} OFFSET {offset}"
         return self.execute_query(sql)
 
-    def get_table_data_iterator(self, table_name: str, batch_size: int = 1000) -> Iterator[List[Dict[str, Any]]]:
+    def get_table_data_iterator(
+        self, table_name: str, batch_size: int = 1000
+    ) -> Iterator[List[Dict[str, Any]]]:
         """获取表数据（返回迭代器，分批获取）"""
         sql = f"SELECT * FROM {table_name}"
         return self.execute_query_iterator(sql, batch_size=batch_size)

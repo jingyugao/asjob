@@ -22,7 +22,8 @@ start: backend frontend
 # 启动后端服务
 backend:
 	@echo "启动后端服务..."
-	@cd backend && uv run python main.py &
+	@export PYTHONPATH=$PYTHONPATH:$(pwd)
+	@uv run python backend/main.py &
 	@echo "后端服务已启动 (PID: $$!)"
 
 # 启动前端服务
@@ -38,13 +39,7 @@ stop:
 	@pkill -f "npm run dev" || true
 	@echo "所有服务已停止"
 
-# 安装依赖
-install:
-	@echo "安装后端依赖..."
-	@cd backend && uv sync
-	@echo "安装前端依赖..."
-	@cd frontend && npm install
-	@echo "依赖安装完成"
+
 
 # 运行所有测试
 test: test-api
