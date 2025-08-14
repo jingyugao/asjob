@@ -1,0 +1,53 @@
+# Python 代码规范和最佳实践
+
+## 项目结构
+- 在dao层编写操作数据库的代码。
+- 在database/model中定义数据库对象
+- 测试代码单独放到tests目录下
+- 相关命令放到makefile文件中
+## 代码风格
+- 遵循 PEP 8 代码风格指南
+- 使用 4 个空格进行缩进，不使用制表符
+- 行长度限制在 79 字符以内
+- 使用 snake_case 命名变量和函数
+- 使用 PascalCase 命名类
+- 使用 UPPER_CASE 命名常量
+
+## 导入规范
+- 导入顺序：标准库 → 第三方库 → 本地模块
+- 每个导入组之间用空行分隔
+- 避免使用通配符导入 (from module import *)
+- 优先使用绝对导入而非相对导入
+
+
+## 错误处理
+- 使用具体的异常类型而非通用 Exception
+- 在适当的地方使用上下文管理器 (with 语句)
+- 避免空的 except 子句
+
+## 性能优化
+- 使用列表推导式而非循环
+- 优先使用生成器表达式处理大数据集
+- 使用 `collections.defaultdict` 和 `collections.Counter`
+- 避免在循环中重复计算
+
+## 测试和文档
+- 为关键函数编写单元测试
+- 使用 docstring 记录函数用途、参数和返回值
+- 遵循 Google 或 NumPy 风格的文档字符串
+
+## 现代 Python 特性
+- 使用 f-strings 进行字符串格式化
+- 利用 dataclasses 简化类定义
+- 使用 pathlib 处理文件路径
+- 优先使用 typing 模块的类型注解
+
+
+
+## 依赖管理
+- 使用 `uv` 管理 Python 环境和依赖
+- 维护 pyproject.toml
+
+alwaysApply: false
+---
+
