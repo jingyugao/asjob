@@ -2,7 +2,7 @@ from typing import List, Optional, Dict, Any
 from pymysql.cursors import DictCursor
 from backend.database.dao.connector_dao import ConnectorDAO
 from backend.database.model.connector import ConnectorModel
-from backend.logger import get_logger
+import logging
 
 
 class ConnectorService:
@@ -10,7 +10,7 @@ class ConnectorService:
 
     def __init__(self, cursor: DictCursor):
         self.dao = ConnectorDAO(cursor)
-        self.logger = get_logger("ConnectorService")
+        self.logger = logging.getLogger("ConnectorService")
 
     def create_connector(self, connector_data: Dict[str, Any]) -> ConnectorModel:
         """创建连接器"""

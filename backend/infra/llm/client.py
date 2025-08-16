@@ -8,3 +8,12 @@ llm = ChatOllama(
     temperature=0.7,
     timeout=120,
 )
+
+
+if __name__ == "__main__":
+    messages = [
+        SystemMessage(content="你是一个有用的助手"),
+        HumanMessage(content="你好"),
+    ]
+    response = llm.invoke(messages)
+    print(response.content)

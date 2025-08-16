@@ -1,3 +1,17 @@
-from .connector import ConnectorCreate, ConnectorUpdate, ConnectorResponse
+from .connector import (
+    ConnectorCreateReq,
+    ConnectorUpdateReq,
+    ConnectorRsp,
+    MessageRsp,
+    TestConnectorRsp,
+    StatsSummaryRsp,
+)
 
-__all__ = ["ConnectorCreate", "ConnectorUpdate", "ConnectorResponse"]
+__all__ = [
+    "ConnectorCreateReq",
+    "ConnectorUpdateReq",
+    "ConnectorRsp",
+    "MessageRsp",
+    "TestConnectorRsp",
+    "StatsSummaryRsp",
+]

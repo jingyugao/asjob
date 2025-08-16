@@ -4,15 +4,24 @@ from pydantic import BaseModel
 from typing import List, Dict, Any, Optional
 import sys
 import os
+import logging
 
 
 from backend.infra.connectors import MySQLConnector, DorisConnector
 from backend.api import api_router
-from backend.database.init_db import init_database
-from backend.logger import get_logger
+
+# 全局日志配置（需在获取任何 logger 之前执行）
+LOG_LEVEL = os.getenv("LOG_LEVEL", "INFO").upper()
+LOG_FORMAT = "%(asctime)s [%(levelname)s] %(name)s: %(message)s"
+DATE_FORMAT = "%Y-%m-%d %H:%M:%S"
+logging.basicConfig(
+    level=getattr(logging, LOG_LEVEL, logging.INFO),
+    format=LOG_FORMAT,
+    datefmt=DATE_FORMAT,
+)
 
 # 获取logger实例
-logger = get_logger("main")
+logger = logging.getLogger("main")
 
 app = FastAPI(title="Data Development Platform", version="1.0.0")
 
@@ -60,7 +69,7 @@ class QueryResult(BaseModel):
 class DatabaseManager:
     def __init__(self):
         self.connections: Dict[str, Any] = {}
-        self.logger = get_logger("DatabaseManager")
+        self.logger = logging.getLogger("DatabaseManager")
 
     def add_connection(self, conn: DatabaseConnection) -> bool:
         try:

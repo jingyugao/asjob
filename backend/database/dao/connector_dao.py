@@ -96,8 +96,9 @@ class ConnectorDAO:
         # 构建更新SQL
         set_clauses = []
         values = []
+        valid_fields = set(ConnectorModel.model_fields.keys())
         for key, value in update_data.items():
-            if hasattr(ConnectorModel, key):
+            if key in valid_fields:
                 set_clauses.append(f"{key} = %s")
                 values.append(value)
 

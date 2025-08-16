@@ -5,7 +5,7 @@
 - 在database/model中定义数据库对象
 - 测试代码单独放到tests目录下
 - 相关命令放到makefile文件中
-- 所有的api接口都必须定义request/response，代码放在api/model目录
+- 所有的api接口都必须定义request/response，代码放在api/model目录。且以req，rsp后缀结尾。
 
 ## 代码风格
 - 遵循 PEP 8 代码风格指南
@@ -34,7 +34,8 @@
 - 避免在循环中重复计算
 
 ## 测试和文档
-- 为关键函数编写单元测试
+- 为关键函数编写单元测试，测试代码放到tests目录下。
+- 临时文件放到tmp目录下
 - 使用 docstring 记录函数用途、参数和返回值
 - 遵循 Google 或 NumPy 风格的文档字符串
 
@@ -43,6 +44,7 @@
 - 利用 dataclasses 简化类定义
 - 使用 pathlib 处理文件路径
 - 优先使用 typing 模块的类型注解
+- 使用pydantic定义数据对象。包括api、db的model
 
 
 

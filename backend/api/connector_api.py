@@ -3,20 +3,23 @@ from pymysql.cursors import DictCursor
 from typing import List, Optional
 from backend.database.session import get_db_cursor
 from backend.database.service.connector_service import ConnectorService
-from backend.api.model.connector import (
-    ConnectorCreate,
-    ConnectorUpdate,
-    ConnectorResponse,
+from backend.api.model import (
+    ConnectorCreateReq,
+    ConnectorUpdateReq,
+    ConnectorRsp,
+    MessageRsp,
+    TestConnectorRsp,
+    StatsSummaryRsp,
 )
-from backend.logger import get_logger
+import logging
 
 router = APIRouter()
-logger = get_logger("connector_api")
+logger = logging.getLogger("connector_api")
 
 
-@router.post("/", response_model=ConnectorResponse)
+@router.post("/", response_model=ConnectorRsp)
 def create_connector(
-    connector: ConnectorCreate, cursor: DictCursor = Depends(get_db_cursor)
+    connector: ConnectorCreateReq, cursor: DictCursor = Depends(get_db_cursor)
 ):
     """创建连接器"""
     logger.info(f"Creating connector: {connector.name} ({connector.db_type})")
@@ -33,7 +36,7 @@ def create_connector(
         raise HTTPException(status_code=500, detail=f"创建失败: {str(e)}")
 
 
-@router.get("/{connector_id}", response_model=ConnectorResponse)
+@router.get("/{connector_id}", response_model=ConnectorRsp)
 def get_connector(connector_id: int, cursor: DictCursor = Depends(get_db_cursor)):
     """获取连接器"""
     logger.info(f"Getting connector with ID: {connector_id}")
@@ -52,7 +55,7 @@ def get_connector(connector_id: int, cursor: DictCursor = Depends(get_db_cursor)
         raise
 
 
-@router.get("/", response_model=List[ConnectorResponse])
+@router.get("/", response_model=List[ConnectorRsp])
 def list_connectors(
     skip: int = Query(0, ge=0),
     limit: int = Query(100, ge=1, le=1000),
@@ -82,10 +85,10 @@ def list_connectors(
         raise
 
 
-@router.put("/{connector_id}", response_model=ConnectorResponse)
+@router.put("/{connector_id}", response_model=ConnectorRsp)
 def update_connector(
     connector_id: int,
-    connector: ConnectorUpdate,
+    connector: ConnectorUpdateReq,
     cursor: DictCursor = Depends(get_db_cursor),
 ):
     """更新连接器"""
@@ -110,7 +113,7 @@ def update_connector(
         raise HTTPException(status_code=500, detail=f"更新失败: {str(e)}")
 
 
-@router.delete("/{connector_id}")
+@router.delete("/{connector_id}", response_model=MessageRsp)
 def delete_connector(connector_id: int, cursor: DictCursor = Depends(get_db_cursor)):
     """删除连接器"""
     logger.info(f"Deleting connector with ID: {connector_id}")
@@ -120,7 +123,7 @@ def delete_connector(connector_id: int, cursor: DictCursor = Depends(get_db_curs
             logger.warning(f"Connector with ID {connector_id} not found for deletion")
             raise HTTPException(status_code=404, detail="连接器不存在")
         logger.info(f"Connector with ID {connector_id} deleted successfully")
-        return {"message": "删除成功"}
+        return MessageRsp(message="删除成功")
     except HTTPException:
         raise
     except Exception as e:
@@ -128,7 +131,7 @@ def delete_connector(connector_id: int, cursor: DictCursor = Depends(get_db_curs
         raise
 
 
-@router.post("/{connector_id}/activate")
+@router.post("/{connector_id}/activate", response_model=MessageRsp)
 def activate_connector(connector_id: int, cursor: DictCursor = Depends(get_db_cursor)):
     """激活连接器"""
     logger.info(f"Activating connector with ID: {connector_id}")
@@ -138,7 +141,7 @@ def activate_connector(connector_id: int, cursor: DictCursor = Depends(get_db_cu
             logger.warning(f"Connector with ID {connector_id} not found for activation")
             raise HTTPException(status_code=404, detail="连接器不存在")
         logger.info(f"Connector with ID {connector_id} activated successfully")
-        return {"message": "激活成功"}
+        return MessageRsp(message="激活成功")
     except HTTPException:
         raise
     except Exception as e:
@@ -146,7 +149,7 @@ def activate_connector(connector_id: int, cursor: DictCursor = Depends(get_db_cu
         raise
 
 
-@router.post("/{connector_id}/deactivate")
+@router.post("/{connector_id}/deactivate", response_model=MessageRsp)
 def deactivate_connector(
     connector_id: int, cursor: DictCursor = Depends(get_db_cursor)
 ):
@@ -160,7 +163,7 @@ def deactivate_connector(
             )
             raise HTTPException(status_code=404, detail="连接器不存在")
         logger.info(f"Connector with ID {connector_id} deactivated successfully")
-        return {"message": "停用成功"}
+        return MessageRsp(message="停用成功")
     except HTTPException:
         raise
     except Exception as e:
@@ -168,7 +171,7 @@ def deactivate_connector(
         raise
 
 
-@router.post("/{connector_id}/test")
+@router.post("/{connector_id}/test", response_model=TestConnectorRsp)
 def test_connector(connector_id: int, cursor: DictCursor = Depends(get_db_cursor)):
     """测试连接器连接"""
     logger.info(f"Testing connector with ID: {connector_id}")
@@ -182,7 +185,7 @@ def test_connector(connector_id: int, cursor: DictCursor = Depends(get_db_cursor
         logger.info(
             f"Connector {connector_id} test result: {'connected' if is_connected else 'disconnected'}"
         )
-        return {"connected": is_connected}
+        return TestConnectorRsp(connected=is_connected)
     except HTTPException:
         raise
     except Exception as e:
@@ -190,7 +193,7 @@ def test_connector(connector_id: int, cursor: DictCursor = Depends(get_db_cursor
         raise
 
 
-@router.get("/stats/summary")
+@router.get("/stats/summary", response_model=StatsSummaryRsp)
 def get_connector_stats(cursor: DictCursor = Depends(get_db_cursor)):
     """获取连接器统计信息"""
     logger.info("Getting connector statistics")
@@ -204,7 +207,7 @@ def get_connector_stats(cursor: DictCursor = Depends(get_db_cursor)):
         raise
 
 
-@router.get("/search/{keyword}", response_model=List[ConnectorResponse])
+@router.get("/search/{keyword}", response_model=List[ConnectorRsp])
 def search_connectors(keyword: str, cursor: DictCursor = Depends(get_db_cursor)):
     """搜索连接器"""
     logger.info(f"Searching connectors with keyword: {keyword}")

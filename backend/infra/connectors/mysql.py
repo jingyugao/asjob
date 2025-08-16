@@ -2,7 +2,7 @@ import pymysql
 from typing import List, Dict, Any, Optional, Iterator
 from contextlib import contextmanager
 from .base import DatabaseConnector
-from backend.logger import get_logger
+import logging
 
 
 class MySQLConnector(DatabaseConnector):
@@ -13,7 +13,7 @@ class MySQLConnector(DatabaseConnector):
     ):
         super().__init__(host, port, username, password, database)
         self.db_type = "mysql"
-        self.logger = get_logger("MySQLConnector")
+        self.logger = logging.getLogger("MySQLConnector")
 
     def test_connection(self) -> bool:
         """测试MySQL连接"""

@@ -2,7 +2,7 @@ import pymysql
 from typing import List, Dict, Any, Optional, Iterator
 from contextlib import contextmanager
 from .base import DatabaseConnector
-from backend.logger import get_logger
+import logging
 
 
 class DorisConnector(DatabaseConnector):
@@ -13,7 +13,7 @@ class DorisConnector(DatabaseConnector):
     ):
         super().__init__(host, port, username, password, database)
         self.db_type = "doris"
-        self.logger = get_logger("DorisConnector")
+        self.logger = logging.getLogger("DorisConnector")
 
     def test_connection(self) -> bool:
         """测试Doris连接"""

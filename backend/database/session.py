@@ -4,11 +4,11 @@ from contextlib import contextmanager
 from typing import Generator
 import time
 from .config import DatabaseConfig
-from backend.logger import get_logger
+import logging
 
 
 config = DatabaseConfig()
-logger = get_logger("database.session")
+logger = logging.getLogger("database.session")
 
 
 class DatabaseConnection:
