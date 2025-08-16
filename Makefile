@@ -1,4 +1,3 @@
-.PHONY: help start stop test test-api clean install
 
 # 默认目标
 help:

@@ -1,33 +1,52 @@
+import logging
+from logging import Logger
+from logging.handlers import RotatingFileHandler
 import sys
 from pathlib import Path
-from loguru import logger
-
-# 创建日志目录
-log_dir = Path("logs")
-log_dir.mkdir(exist_ok=True)
-
-# 移除默认的控制台输出
-logger.remove()
-
-# 添加控制台输出（INFO级别）
-logger.add(
-    sys.stdout,
-    format="<green>{time:YYYY-MM-DD HH:mm:ss}</green> | <level>{level: <8}</level> | <cyan>{name}</cyan>:<cyan>{function}</cyan>:<cyan>{line}</cyan> | <level>{message}</level>",
-    level="INFO",
-    colorize=True,
-)
-
-# 添加文件输出（DEBUG级别，包含更多详细信息）
-logger.add(
-    log_dir / "backend.log",
-    format="{time:YYYY-MM-DD HH:mm:ss} | {level: <8} | {name}:{function}:{line} | {message}",
-    level="DEBUG",
-    rotation="10 MB",
-    retention="30 days",
-    compression="zip",
-)
 
 
-# 获取logger实例
-def get_logger(name: str):
-    return logger.bind(name=name)
+_LOG_DIR = Path("logs")
+_LOG_DIR.mkdir(exist_ok=True)
+_LOG_FILE = _LOG_DIR / "backend.log"
+
+
+def _configure_root_logger() -> None:
+    if getattr(_configure_root_logger, "_configured", False):
+        return
+
+    root_logger = logging.getLogger()
+    root_logger.setLevel(logging.DEBUG)
+
+    console_handler = logging.StreamHandler(sys.stdout)
+    console_handler.setLevel(logging.INFO)
+    console_formatter = logging.Formatter(
+        fmt="%(asctime)s | %(levelname)-8s | %(name)s:%(funcName)s:%(lineno)d | %(message)s",
+        datefmt="%Y-%m-%d %H:%M:%S",
+    )
+    console_handler.setFormatter(console_formatter)
+
+    file_handler = RotatingFileHandler(
+        filename=str(_LOG_FILE),
+        maxBytes=10 * 1024 * 1024,
+        backupCount=5,
+        encoding="utf-8",
+    )
+    file_handler.setLevel(logging.DEBUG)
+    file_formatter = logging.Formatter(
+        fmt="%(asctime)s | %(levelname)-8s | %(name)s:%(funcName)s:%(lineno)d | %(message)s",
+        datefmt="%Y-%m-%d %H:%M:%S",
+    )
+    file_handler.setFormatter(file_formatter)
+
+    # 避免重复添加 handler
+    if not any(isinstance(h, logging.StreamHandler) for h in root_logger.handlers):
+        root_logger.addHandler(console_handler)
+    if not any(isinstance(h, RotatingFileHandler) for h in root_logger.handlers):
+        root_logger.addHandler(file_handler)
+
+    _configure_root_logger._configured = True  # type: ignore[attr-defined]
+
+
+def get_logger(name: str) -> Logger:
+    _configure_root_logger()
+    return logging.getLogger(name)

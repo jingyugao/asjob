@@ -1,5 +1,5 @@
 from pydantic_settings import BaseSettings
-from pydantic import validator
+from pydantic import validator, field_validator
 from typing import Optional
 import urllib.parse
 
@@ -7,8 +7,8 @@ import urllib.parse
 class DatabaseConfig(BaseSettings):
     """数据库配置"""
 
-    # 连接字符串配置
-    mysql_dns: str = "mysql://root:@localhost:3306/chatjob"
+    # 连接字符串配置 - 使用正确的环境变量名
+    mysql_dns: str = "mysql://root:Str0ngP@ssw0rd!@localhost:3306/asjob"
 
     # 兼容性配置（可选）
     host: Optional[str] = None
@@ -17,7 +17,8 @@ class DatabaseConfig(BaseSettings):
     password: Optional[str] = None
     database: Optional[str] = None
 
-    @validator("mysql_dns")
+    @field_validator("mysql_dns")
+    @classmethod
     def validate_mysql_dns(cls, v):
         """验证MySQL连接字符串格式"""
         if not v.startswith("mysql://"):
@@ -30,12 +31,12 @@ class DatabaseConfig(BaseSettings):
         # 如果提供了完整的连接字符串，直接使用
         if self.mysql_dns:
             # 确保连接字符串包含数据库名
-            if "/chatjob" not in self.mysql_dns:
+            if "/asjob" not in self.mysql_dns:
                 # 如果没有数据库名，添加默认数据库
                 if self.mysql_dns.endswith("/"):
-                    return f"{self.mysql_dns}chatjob"
+                    return f"{self.mysql_dns}asjob"
                 else:
-                    return f"{self.mysql_dns}/chatjob"
+                    return f"{self.mysql_dns}/asjob"
             return self.mysql_dns
 
         # 兼容性：使用单独的配置项构建URL
@@ -62,7 +63,7 @@ class DatabaseConfig(BaseSettings):
             port = parsed.port or 3306
 
             # 提取数据库名
-            database = parsed.path.lstrip("/") or "chatjob"
+            database = parsed.path.lstrip("/") or "asjob"
 
             return {
                 "host": host,
@@ -76,3 +77,9 @@ class DatabaseConfig(BaseSettings):
 
     class Config:
         env_prefix = "DB_"
+        # 环境变量映射 - Pydantic V2 使用 model_config
+        model_config = {
+            "env_prefix": "DB_",
+            "env_file": ".env",
+            "env_file_encoding": "utf-8",
+        }

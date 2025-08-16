@@ -6,7 +6,7 @@ import sys
 import os
 
 
-from backend.connectors import MySQLConnector, DorisConnector
+from backend.infra.connectors import MySQLConnector, DorisConnector
 from backend.api import api_router
 from backend.database.init_db import init_database
 from backend.logger import get_logger
