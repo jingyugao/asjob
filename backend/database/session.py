@@ -61,7 +61,7 @@ class DatabaseConnection:
                     "connection_id": conn.thread_id(),
                     "server_version": getattr(conn, "server_version", None),
                     "charset": getattr(conn, "charset", None),
-                    "autocommit": conn.autocommit(),
+                    "autocommit": getattr(conn, "get_autocommit", lambda: None)(),
                     "host": self.connection_params["host"],
                     "port": self.connection_params["port"],
                     "username": self.connection_params["username"],
@@ -184,6 +184,19 @@ def create_tables():
 
     with db_connection.get_cursor() as cursor:
         cursor.execute(create_connectors_table)
+        create_knowledge_table = """
+        CREATE TABLE IF NOT EXISTS knowledge (
+            id INT AUTO_INCREMENT PRIMARY KEY,
+            target_type VARCHAR(20) NOT NULL COMMENT '目标类型(database|table|field)',
+            target_name VARCHAR(512) NOT NULL COMMENT '目标名称 connector::db::table::field',
+            content TEXT NOT NULL COMMENT '知识内容',
+            created_by VARCHAR(100) NOT NULL COMMENT '创建者',
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+            INDEX idx_target_type_name (target_type, target_name)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+        """
+        cursor.execute(create_knowledge_table)
 
 
 def get_connection_info():

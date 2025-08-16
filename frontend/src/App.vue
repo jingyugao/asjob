@@ -2,7 +2,17 @@
   <div id="app">
     <el-container>
       <el-header>
-        <h1>数据开发平台</h1>
+        <div class="header-inner">
+          <h1>数据开发平台</h1>
+          <div class="nav">
+            <router-link to="/database">
+              <el-button type="primary" link>数据库</el-button>
+            </router-link>
+            <router-link to="/chat">
+              <el-button type="primary" link>对话</el-button>
+            </router-link>
+          </div>
+        </div>
       </el-header>
       <el-main>
         <router-view />
@@ -29,10 +39,9 @@ export default {
   line-height: 60px;
 }
 
-.el-header h1 {
-  margin: 0;
-  font-size: 24px;
-}
+.header-inner { display: flex; justify-content: space-between; align-items: center; }
+.el-header h1 { margin: 0; font-size: 24px; }
+.nav a { margin-left: 8px; }
 
 .el-main {
   padding: 20px;

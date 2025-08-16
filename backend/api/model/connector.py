@@ -67,3 +67,16 @@ class StatsSummaryRsp(BaseModel):
     doris: int
     active: int
     inactive: int
+
+
+class ParseConnectorReq(BaseModel):
+    text: str = Field(..., description="任意文本，包含或描述连接信息")
+
+
+class ParseConnectorRsp(BaseModel):
+    db_type: str
+    host: str
+    port: int
+    username: str
+    password: str
+    database: str

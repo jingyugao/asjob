@@ -1,5 +1,6 @@
 import { createRouter, createWebHistory } from 'vue-router'
 import DatabaseManager from '../views/DatabaseManager.vue'
+import Chat from '../views/Chat.vue'
 
 const routes = [
   {
@@ -10,6 +11,11 @@ const routes = [
     path: '/database',
     name: 'DatabaseManager',
     component: DatabaseManager
+  },
+  {
+    path: '/chat',
+    name: 'Chat',
+    component: Chat
   }
 ]
 

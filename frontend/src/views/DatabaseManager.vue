@@ -214,9 +214,13 @@
         <el-form-item label="连接字符串" prop="connectionString">
           <el-input
             v-model="connectionString"
-            placeholder="例如: mysql://root:password@localhost:3306/database"
+            placeholder="例如: 任意描述, 我们用AI来解析 (或标准: mysql://root:password@localhost:3306/database)"
             @input="parseConnectionString"
           />
+          <div style="margin-top:8px; display:flex; gap:8px;">
+            <el-button size="small" @click="parseConnectionString(connectionString)">本地解析</el-button>
+            <el-button size="small" type="primary" :loading="aiParsing" @click="aiParseConnection">AI 解析</el-button>
+          </div>
           <div class="connection-string-help">
             <el-text size="small" type="info">
               格式: mysql://username:password@host:port/database
@@ -316,6 +320,7 @@ export default {
     const connectionMethod = ref('manual')
     const connectionString = ref('')
     const parsedConnection = ref(null)
+    const aiParsing = ref(false)
 
     const newConnection = reactive({
       name: '',
@@ -345,7 +350,7 @@ export default {
       }
 
       try {
-        // 解析连接字符串 mysql://username:password@host:port/database
+        // 优先尝试 URL 解析: mysql://username:password@host:port/database
         const url = new URL(value)
         
         if (url.protocol !== 'mysql:') {
@@ -384,9 +389,29 @@ export default {
         }
 
       } catch (error) {
-        console.error('连接字符串解析失败:', error)
-        parsedConnection.value = null
-        ElMessage.warning('连接字符串格式不正确，请检查格式')
+        // 非URL文本，留给 AI 解析按钮来处理
+      }
+    }
+
+    // AI 解析任意文本为连接信息
+    const aiParseConnection = async () => {
+      if (!connectionString.value.trim()) {
+        ElMessage.warning('请输入文本或连接字符串')
+        return
+      }
+      aiParsing.value = true
+      try {
+        const resp = await axios.post('/api/v1/connectors/parse', { text: connectionString.value })
+        parsedConnection.value = resp.data
+        // 自动填充名称
+        if (!newConnection.name) {
+          newConnection.name = `${resp.data.db_type}_${resp.data.host}_${resp.data.database}`
+        }
+        ElMessage.success('AI 解析成功')
+      } catch (e) {
+        ElMessage.error(e?.response?.data?.detail || 'AI 解析失败')
+      } finally {
+        aiParsing.value = false
       }
     }
 
@@ -648,6 +673,8 @@ export default {
       connectionString,
       parsedConnection,
       parseConnectionString,
+      aiParseConnection,
+      aiParsing,
       onConnectionMethodChange,
       resetForm
     }

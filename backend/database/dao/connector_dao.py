@@ -33,7 +33,7 @@ class ConnectorDAO:
         result = self.cursor.fetchone()
 
         if result:
-            return ConnectorModel.from_dict(result)
+            return ConnectorModel.model_validate(result)
         return None
 
     def get_by_name(self, name: str) -> Optional[ConnectorModel]:
@@ -43,7 +43,7 @@ class ConnectorDAO:
         result = self.cursor.fetchone()
 
         if result:
-            return ConnectorModel.from_dict(result)
+            return ConnectorModel.model_validate(result)
         return None
 
     def get_all(self, skip: int = 0, limit: int = 100) -> List[ConnectorModel]:
@@ -52,7 +52,7 @@ class ConnectorDAO:
         self.cursor.execute(sql, (limit, skip))
         results = self.cursor.fetchall()
 
-        return [ConnectorModel.from_dict(result) for result in results]
+        return [ConnectorModel.model_validate(result) for result in results]
 
     def get_active(self) -> List[ConnectorModel]:
         """获取所有激活的连接器"""
@@ -60,7 +60,7 @@ class ConnectorDAO:
         self.cursor.execute(sql)
         results = self.cursor.fetchall()
 
-        return [ConnectorModel.from_dict(result) for result in results]
+        return [ConnectorModel.model_validate(result) for result in results]
 
     def get_by_type(self, db_type: str) -> List[ConnectorModel]:
         """根据数据库类型获取连接器"""
@@ -68,7 +68,7 @@ class ConnectorDAO:
         self.cursor.execute(sql, (db_type,))
         results = self.cursor.fetchall()
 
-        return [ConnectorModel.from_dict(result) for result in results]
+        return [ConnectorModel.model_validate(result) for result in results]
 
     def search(self, keyword: str) -> List[ConnectorModel]:
         """搜索连接器"""
@@ -83,7 +83,7 @@ class ConnectorDAO:
         )
         results = self.cursor.fetchall()
 
-        return [ConnectorModel.from_dict(result) for result in results]
+        return [ConnectorModel.model_validate(result) for result in results]
 
     def update(
         self, connector_id: int, update_data: Dict[str, Any]

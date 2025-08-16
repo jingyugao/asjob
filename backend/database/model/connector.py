@@ -22,31 +22,6 @@ class ConnectorModel(BaseModel):
     def __repr__(self) -> str:
         return f"<ConnectorModel(id={self.id}, name='{self.name}', db_type='{self.db_type}')>"
 
-    @classmethod
-    def from_dict(cls, data: dict) -> "ConnectorModel":
-        """从字典创建模型实例"""
-        if "database" in data:
-            data["database_name"] = data.pop("database")
-        return cls(**data)
-
-    def to_dict(self) -> dict:
-        """转换为字典（对外API使用`database`字段名）"""
-        data = {
-            "id": self.id,
-            "name": self.name,
-            "db_type": self.db_type,
-            "host": self.host,
-            "port": self.port,
-            "username": self.username,
-            "password": self.password,
-            "database": self.database_name,
-            "description": self.description,
-            "is_active": self.is_active,
-            "created_at": self.created_at,
-            "updated_at": self.updated_at,
-        }
-        return {key: value for key, value in data.items() if value is not None}
-
     class Config:
         from_attributes = True
 

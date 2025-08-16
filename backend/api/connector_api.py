@@ -10,7 +10,11 @@ from backend.api.model import (
     MessageRsp,
     TestConnectorRsp,
     StatsSummaryRsp,
+    ParseConnectorReq,
+    ParseConnectorRsp,
 )
+from backend.infra.llm.client import llm
+from langchain.schema import SystemMessage, HumanMessage
 import logging
 
 router = APIRouter()
@@ -219,3 +223,58 @@ def search_connectors(keyword: str, cursor: DictCursor = Depends(get_db_cursor))
     except Exception as e:
         logger.error(f"Failed to search connectors with keyword '{keyword}': {str(e)}")
         raise
+
+
+@router.post("/parse", response_model=ParseConnectorRsp)
+def parse_connector(req: ParseConnectorReq):
+    """使用 LLM 解析任意文本中的连接信息"""
+    try:
+        system_prompt = (
+            "你是一个严格的解析器。\n"
+            "从用户提供的文本中提取数据库连接信息，仅返回JSON，不要解释。\n"
+            "字段: db_type(host的数据库类型, 只能是mysql或doris), host, port(数字), username, password, database。\n"
+            "若缺失字段，请合理推断常见默认值: port: mysql=3306, doris=9030; database 可用 chatjob。\n"
+            "确保返回是一个严格的 JSON 对象，不包含多余文本。"
+        )
+        user_prompt = "文本如下，提取连接信息并返回JSON: \n\n" + req.text
+        messages = [
+            SystemMessage(content=system_prompt),
+            HumanMessage(content=user_prompt),
+        ]
+        resp = llm.invoke(messages)
+        content = resp.content if hasattr(resp, "content") else str(resp)
+
+        import json
+
+        try:
+            data = json.loads(content)
+        except Exception:
+            # 容错：尝试截取第一个大括号 JSON 片段
+            start = content.find("{")
+            end = content.rfind("}")
+            if start != -1 and end != -1 and end > start:
+                data = json.loads(content[start : end + 1])
+            else:
+                raise ValueError("解析失败: 模型未返回有效JSON")
+
+        # 归一化和默认值
+        db_type = str(data.get("db_type", "mysql")).lower()
+        if db_type not in ("mysql", "doris"):
+            db_type = "mysql"
+        host = data.get("host") or "localhost"
+        port = int(data.get("port") or (9030 if db_type == "doris" else 3306))
+        username = data.get("username") or "root"
+        password = data.get("password") or ""
+        database = data.get("database") or "chatjob"
+
+        return ParseConnectorRsp(
+            db_type=db_type,
+            host=str(host),
+            port=port,
+            username=str(username),
+            password=str(password),
+            database=str(database),
+        )
+    except Exception as e:
+        logger.error(f"Failed to parse connector from text: {str(e)}")
+        raise HTTPException(status_code=400, detail=f"解析失败: {str(e)}")

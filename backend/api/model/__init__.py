@@ -6,6 +6,18 @@ from .connector import (
     TestConnectorRsp,
     StatsSummaryRsp,
 )
+from .knowledge import (
+    KnowledgeCreateReq,
+    KnowledgeUpdateReq,
+    KnowledgeRsp,
+    KnowledgeListRsp,
+)
+from .chat import (
+    ChatReq,
+    ChatRsp,
+    ConversationCreateReq,
+    ConversationRsp,
+)
 
 __all__ = [
     "ConnectorCreateReq",
@@ -14,4 +26,12 @@ __all__ = [
     "MessageRsp",
     "TestConnectorRsp",
     "StatsSummaryRsp",
+    "KnowledgeCreateReq",
+    "KnowledgeUpdateReq",
+    "KnowledgeRsp",
+    "KnowledgeListRsp",
+    "ChatReq",
+    "ChatRsp",
+    "ConversationCreateReq",
+    "ConversationRsp",
 ]
