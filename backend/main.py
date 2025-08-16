@@ -9,6 +9,10 @@ import os
 from backend.connectors import MySQLConnector, DorisConnector
 from backend.api import api_router
 from backend.database.init_db import init_database
+from backend.logger import get_logger
+
+# 获取logger实例
+logger = get_logger("main")
 
 app = FastAPI(title="Data Development Platform", version="1.0.0")
 
@@ -56,9 +60,14 @@ class QueryResult(BaseModel):
 class DatabaseManager:
     def __init__(self):
         self.connections: Dict[str, Any] = {}
+        self.logger = get_logger("DatabaseManager")
 
     def add_connection(self, conn: DatabaseConnection) -> bool:
         try:
+            self.logger.info(
+                f"Adding database connection: {conn.name} ({conn.db_type})"
+            )
+
             if conn.db_type == "mysql":
                 connector = MySQLConnector(
                     host=conn.host,
@@ -76,48 +85,78 @@ class DatabaseManager:
                     database=conn.database,
                 )
             else:
-                raise ValueError(f"Unsupported database type: {conn.db_type}")
+                error_msg = f"Unsupported database type: {conn.db_type}"
+                self.logger.error(error_msg)
+                raise ValueError(error_msg)
 
             # 测试连接
             if connector.test_connection():
                 self.connections[conn.name] = connector
+                self.logger.info(
+                    f"Database connection '{conn.name}' added successfully"
+                )
                 return True
             else:
-                raise Exception("Connection test failed")
+                error_msg = "Connection test failed"
+                self.logger.error(f"Connection test failed for '{conn.name}'")
+                raise Exception(error_msg)
         except Exception as e:
+            self.logger.error(f"Failed to add connection '{conn.name}': {str(e)}")
             raise HTTPException(status_code=400, detail=f"Connection failed: {str(e)}")
 
     def get_connections(self) -> List[DatabaseConnection]:
-        return [
-            DatabaseConnection(
-                name=name,
-                host=conn.host,
-                port=conn.port,
-                username=conn.username,
-                password=conn.password,
-                database=conn.database,
-                db_type=conn.db_type,
-            )
-            for name, conn in self.connections.items()
-        ]
+        try:
+            connections = [
+                DatabaseConnection(
+                    name=name,
+                    host=conn.host,
+                    port=conn.port,
+                    username=conn.username,
+                    password=conn.password,
+                    database=conn.database,
+                    db_type=conn.db_type,
+                )
+                for name, conn in self.connections.items()
+            ]
+            self.logger.info(f"Retrieved {len(connections)} database connections")
+            return connections
+        except Exception as e:
+            self.logger.error(f"Failed to get connections: {str(e)}")
+            raise
 
     def get_connection(self, name: str):
-        return self.connections.get(name)
+        conn = self.connections.get(name)
+        if not conn:
+            self.logger.warning(f"Connection '{name}' not found")
+        return conn
 
     def remove_connection(self, name: str) -> bool:
         if name in self.connections:
             del self.connections[name]
+            self.logger.info(f"Database connection '{name}' removed successfully")
             return True
+        self.logger.warning(f"Attempted to remove non-existent connection '{name}'")
         return False
 
     def get_tables(self, conn_name: str) -> List[str]:
         conn = self.get_connection(conn_name)
         if not conn:
-            raise HTTPException(status_code=404, detail="Connection not found")
+            error_msg = "Connection not found"
+            self.logger.error(
+                f"Failed to get tables: {error_msg} for connection '{conn_name}'"
+            )
+            raise HTTPException(status_code=404, detail=error_msg)
 
         try:
-            return conn.get_tables()
+            tables = conn.get_tables()
+            self.logger.info(
+                f"Retrieved {len(tables)} tables from connection '{conn_name}'"
+            )
+            return tables
         except Exception as e:
+            self.logger.error(
+                f"Failed to get tables from connection '{conn_name}': {str(e)}"
+            )
             raise HTTPException(
                 status_code=500, detail=f"Failed to get tables: {str(e)}"
             )
@@ -125,12 +164,22 @@ class DatabaseManager:
     def get_table_structure(self, conn_name: str, table_name: str) -> TableInfo:
         conn = self.get_connection(conn_name)
         if not conn:
-            raise HTTPException(status_code=404, detail="Connection not found")
+            error_msg = "Connection not found"
+            self.logger.error(
+                f"Failed to get table structure: {error_msg} for connection '{conn_name}'"
+            )
+            raise HTTPException(status_code=404, detail=error_msg)
 
         try:
             columns = conn.get_table_structure(table_name)
+            self.logger.info(
+                f"Retrieved table structure for '{table_name}' from connection '{conn_name}'"
+            )
             return TableInfo(name=table_name, columns=columns)
         except Exception as e:
+            self.logger.error(
+                f"Failed to get table structure for '{table_name}' from connection '{conn_name}': {str(e)}"
+            )
             raise HTTPException(
                 status_code=500, detail=f"Failed to get table structure: {str(e)}"
             )
@@ -138,12 +187,23 @@ class DatabaseManager:
     def execute_query(self, conn_name: str, query: SQLQuery) -> QueryResult:
         conn = self.get_connection(conn_name)
         if not conn:
-            raise HTTPException(status_code=404, detail="Connection not found")
+            error_msg = "Connection not found"
+            self.logger.error(
+                f"Failed to execute query: {error_msg} for connection '{conn_name}'"
+            )
+            raise HTTPException(status_code=404, detail=error_msg)
 
         try:
+            self.logger.info(
+                f"Executing query on connection '{conn_name}': {query.sql[:100]}..."
+            )
             data = conn.execute_query(query.sql, query.params)
+            self.logger.info(f"Query executed successfully, returned {len(data)} rows")
             return QueryResult(data=data, total=len(data), sql=query.sql)
         except Exception as e:
+            self.logger.error(
+                f"Failed to execute query on connection '{conn_name}': {str(e)}"
+            )
             raise HTTPException(
                 status_code=500, detail=f"Failed to execute query: {str(e)}"
             )
@@ -153,17 +213,30 @@ class DatabaseManager:
     ) -> QueryResult:
         conn = self.get_connection(conn_name)
         if not conn:
-            raise HTTPException(status_code=404, detail="Connection not found")
+            error_msg = "Connection not found"
+            self.logger.error(
+                f"Failed to get table data: {error_msg} for connection '{conn_name}'"
+            )
+            raise HTTPException(status_code=404, detail=error_msg)
 
         try:
+            self.logger.info(
+                f"Getting table data from '{table_name}' on connection '{conn_name}' (limit: {limit}, offset: {offset})"
+            )
             data = conn.get_table_data(table_name, limit, offset)
             total = conn.get_table_count(table_name)
+            self.logger.info(
+                f"Retrieved {len(data)} rows from table '{table_name}' (total: {total})"
+            )
             return QueryResult(
                 data=data,
                 total=total,
                 sql=f"SELECT * FROM {table_name} LIMIT {limit} OFFSET {offset}",
             )
         except Exception as e:
+            self.logger.error(
+                f"Failed to get table data from '{table_name}' on connection '{conn_name}': {str(e)}"
+            )
             raise HTTPException(
                 status_code=500, detail=f"Failed to get table data: {str(e)}"
             )
@@ -175,63 +248,120 @@ db_manager = DatabaseManager()
 
 @app.get("/")
 def read_root():
+    logger.info("API: Root endpoint accessed")
     return {"message": "Data Development Platform API"}
 
 
 @app.post("/api/connections")
 def add_connection(connection: DatabaseConnection):
     """添加数据库连接"""
-    success = db_manager.add_connection(connection)
-    return {"message": "Connection added successfully", "connection": connection}
+    try:
+        success = db_manager.add_connection(connection)
+        logger.info(f"API: Database connection '{connection.name}' added successfully")
+        return {"message": "Connection added successfully", "connection": connection}
+    except Exception as e:
+        logger.error(f"API: Failed to add database connection: {str(e)}")
+        raise
 
 
 @app.get("/api/connections")
 def get_connections():
     """获取所有数据库连接"""
-    return db_manager.get_connections()
+    try:
+        connections = db_manager.get_connections()
+        logger.info(f"API: Retrieved {len(connections)} database connections")
+        return connections
+    except Exception as e:
+        logger.error(f"API: Failed to get database connections: {str(e)}")
+        raise
 
 
 @app.delete("/api/connections/{name}")
 def remove_connection(name: str):
     """删除数据库连接"""
-    success = db_manager.remove_connection(name)
-    if success:
-        return {"message": "Connection removed successfully"}
-    else:
-        raise HTTPException(status_code=404, detail="Connection not found")
+    try:
+        success = db_manager.remove_connection(name)
+        if success:
+            logger.info(f"API: Database connection '{name}' removed successfully")
+            return {"message": "Connection removed successfully"}
+        else:
+            logger.warning(f"API: Attempted to remove non-existent connection '{name}'")
+            raise HTTPException(status_code=404, detail="Connection not found")
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"API: Failed to remove database connection '{name}': {str(e)}")
+        raise
 
 
 @app.get("/api/connections/{name}/tables")
 def get_tables(name: str):
     """获取指定连接的所有表"""
-    tables = db_manager.get_tables(name)
-    return {"tables": tables}
+    try:
+        tables = db_manager.get_tables(name)
+        logger.info(f"API: Retrieved {len(tables)} tables from connection '{name}'")
+        return {"tables": tables}
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"API: Failed to get tables from connection '{name}': {str(e)}")
+        raise
 
 
 @app.get("/api/connections/{name}/tables/{table_name}/structure")
 def get_table_structure(name: str, table_name: str):
     """获取指定表的结构"""
-    structure = db_manager.get_table_structure(name, table_name)
-    return structure
+    try:
+        structure = db_manager.get_table_structure(name, table_name)
+        logger.info(
+            f"API: Retrieved table structure for '{table_name}' from connection '{name}'"
+        )
+        return structure
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(
+            f"API: Failed to get table structure for '{table_name}' from connection '{name}': {str(e)}"
+        )
+        raise
 
 
 @app.post("/api/connections/{name}/query")
 def execute_query(name: str, query: SQLQuery):
     """执行SQL查询"""
-    result = db_manager.execute_query(name, query)
-    return result
+    try:
+        result = db_manager.execute_query(name, query)
+        logger.info(f"API: Query executed successfully on connection '{name}'")
+        return result
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"API: Failed to execute query on connection '{name}': {str(e)}")
+        raise
 
 
 @app.get("/api/connections/{name}/tables/{table_name}/data")
 def get_table_data(name: str, table_name: str, limit: int = 100, offset: int = 0):
     """获取表数据"""
-    result = db_manager.get_table_data(name, table_name, limit, offset)
-    return result
+    try:
+        result = db_manager.get_table_data(name, table_name, limit, offset)
+        logger.info(
+            f"API: Retrieved table data from '{table_name}' on connection '{name}'"
+        )
+        return result
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(
+            f"API: Failed to get table data from '{table_name}' on connection '{name}': {str(e)}"
+        )
+        raise
 
 
 @app.get("/api/health")
 def health_check():
     """健康检查"""
+    logger.info("API: Health check requested")
     return {"status": "healthy"}
 
 

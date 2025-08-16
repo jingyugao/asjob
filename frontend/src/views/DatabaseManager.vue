@@ -360,7 +360,7 @@ export default {
         // 从路径中提取数据库名
         let database = url.pathname.slice(1) // 移除开头的 '/'
         if (!database) {
-          database = 'asjob' // 默认数据库名
+          database = 'chatjob' // 默认数据库名
         }
 
         // 根据主机名判断数据库类型

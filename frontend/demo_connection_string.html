@@ -178,8 +178,8 @@
             <h3>💡 连接字符串示例</h3>
             <p>点击下面的示例来测试解析功能：</p>
             
-            <div class="example-item" onclick="setExample('mysql://root:password@localhost:3306/asjob')">
-                <strong>基本连接:</strong> <code>mysql://root:password@localhost:3306/asjob</code>
+            <div class="example-item" onclick="setExample('mysql://root:password@localhost:3306/chatjob')">
+                <strong>基本连接:</strong> <code>mysql://root:password@localhost:3306/chatjob</code>
             </div>
             
             <div class="example-item" onclick="setExample('mysql://root:Str0ngP@ssw0rd!@localhost:3306')">
@@ -227,7 +227,7 @@
                 // 从路径中提取数据库名
                 let database = url.pathname.slice(1); // 移除开头的 '/'
                 if (!database) {
-                    database = 'asjob'; // 默认数据库名
+                    database = 'chatjob'; // 默认数据库名
                 }
                 
                 // 根据主机名和端口判断数据库类型
@@ -269,7 +269,7 @@
         // 页面加载完成后自动解析示例
         window.addEventListener('load', function() {
             // 设置默认示例
-            document.getElementById('connectionString').value = 'mysql://root:password@localhost:3306/asjob';
+            document.getElementById('connectionString').value = 'mysql://root:password@localhost:3306/chatjob';
             parseConnectionString();
         });
     </script>

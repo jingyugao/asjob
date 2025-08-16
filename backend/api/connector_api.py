@@ -8,8 +8,10 @@ from backend.api.model.connector import (
     ConnectorUpdate,
     ConnectorResponse,
 )
+from backend.logger import get_logger
 
 router = APIRouter()
+logger = get_logger("connector_api")
 
 
 @router.post("/", response_model=ConnectorResponse)
@@ -17,23 +19,37 @@ def create_connector(
     connector: ConnectorCreate, cursor: DictCursor = Depends(get_db_cursor)
 ):
     """创建连接器"""
+    logger.info(f"Creating connector: {connector.name} ({connector.db_type})")
     service = ConnectorService(cursor)
     try:
-        return service.create_connector(connector.dict())
+        result = service.create_connector(connector.dict())
+        logger.info(f"Connector '{connector.name}' created successfully")
+        return result
     except ValueError as e:
+        logger.warning(f"Failed to create connector '{connector.name}': {str(e)}")
         raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:
+        logger.error(f"Failed to create connector '{connector.name}': {str(e)}")
         raise HTTPException(status_code=500, detail=f"创建失败: {str(e)}")
 
 
 @router.get("/{connector_id}", response_model=ConnectorResponse)
 def get_connector(connector_id: int, cursor: DictCursor = Depends(get_db_cursor)):
     """获取连接器"""
+    logger.info(f"Getting connector with ID: {connector_id}")
     service = ConnectorService(cursor)
-    connector = service.get_connector(connector_id)
-    if not connector:
-        raise HTTPException(status_code=404, detail="连接器不存在")
-    return connector
+    try:
+        connector = service.get_connector(connector_id)
+        if not connector:
+            logger.warning(f"Connector with ID {connector_id} not found")
+            raise HTTPException(status_code=404, detail="连接器不存在")
+        logger.info(f"Retrieved connector '{connector.name}' successfully")
+        return connector
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Failed to get connector with ID {connector_id}: {str(e)}")
+        raise
 
 
 @router.get("/", response_model=List[ConnectorResponse])
@@ -45,14 +61,25 @@ def list_connectors(
     cursor: DictCursor = Depends(get_db_cursor),
 ):
     """列出连接器"""
+    logger.info(
+        f"Listing connectors (skip: {skip}, limit: {limit}, db_type: {db_type}, active_only: {active_only})"
+    )
     service = ConnectorService(cursor)
 
-    if active_only:
-        return service.list_active_connectors()
-    elif db_type:
-        return service.list_connectors_by_type(db_type)
-    else:
-        return service.list_connectors(skip, limit)
+    try:
+        if active_only:
+            result = service.list_active_connectors()
+            logger.info(f"Retrieved {len(result)} active connectors")
+        elif db_type:
+            result = service.list_connectors_by_type(db_type)
+            logger.info(f"Retrieved {len(result)} connectors of type '{db_type}'")
+        else:
+            result = service.list_connectors(skip, limit)
+            logger.info(f"Retrieved {len(result)} connectors")
+        return result
+    except Exception as e:
+        logger.error(f"Failed to list connectors: {str(e)}")
+        raise
 
 
 @router.put("/{connector_id}", response_model=ConnectorResponse)
@@ -62,36 +89,61 @@ def update_connector(
     cursor: DictCursor = Depends(get_db_cursor),
 ):
     """更新连接器"""
+    logger.info(f"Updating connector with ID: {connector_id}")
     service = ConnectorService(cursor)
     try:
         updated = service.update_connector(
             connector_id, connector.dict(exclude_unset=True)
         )
         if not updated:
+            logger.warning(f"Connector with ID {connector_id} not found for update")
             raise HTTPException(status_code=404, detail="连接器不存在")
+        logger.info(f"Connector '{updated.name}' updated successfully")
         return updated
     except ValueError as e:
+        logger.warning(f"Failed to update connector {connector_id}: {str(e)}")
         raise HTTPException(status_code=400, detail=str(e))
+    except HTTPException:
+        raise
     except Exception as e:
+        logger.error(f"Failed to update connector {connector_id}: {str(e)}")
         raise HTTPException(status_code=500, detail=f"更新失败: {str(e)}")
 
 
 @router.delete("/{connector_id}")
 def delete_connector(connector_id: int, cursor: DictCursor = Depends(get_db_cursor)):
     """删除连接器"""
+    logger.info(f"Deleting connector with ID: {connector_id}")
     service = ConnectorService(cursor)
-    if not service.delete_connector(connector_id):
-        raise HTTPException(status_code=404, detail="连接器不存在")
-    return {"message": "删除成功"}
+    try:
+        if not service.delete_connector(connector_id):
+            logger.warning(f"Connector with ID {connector_id} not found for deletion")
+            raise HTTPException(status_code=404, detail="连接器不存在")
+        logger.info(f"Connector with ID {connector_id} deleted successfully")
+        return {"message": "删除成功"}
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Failed to delete connector {connector_id}: {str(e)}")
+        raise
 
 
 @router.post("/{connector_id}/activate")
 def activate_connector(connector_id: int, cursor: DictCursor = Depends(get_db_cursor)):
     """激活连接器"""
+    logger.info(f"Activating connector with ID: {connector_id}")
     service = ConnectorService(cursor)
-    if not service.activate_connector(connector_id):
-        raise HTTPException(status_code=404, detail="连接器不存在")
-    return {"message": "激活成功"}
+    try:
+        if not service.activate_connector(connector_id):
+            logger.warning(f"Connector with ID {connector_id} not found for activation")
+            raise HTTPException(status_code=404, detail="连接器不存在")
+        logger.info(f"Connector with ID {connector_id} activated successfully")
+        return {"message": "激活成功"}
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Failed to activate connector {connector_id}: {str(e)}")
+        raise
 
 
 @router.post("/{connector_id}/deactivate")
@@ -99,32 +151,68 @@ def deactivate_connector(
     connector_id: int, cursor: DictCursor = Depends(get_db_cursor)
 ):
     """停用连接器"""
+    logger.info(f"Deactivating connector with ID: {connector_id}")
     service = ConnectorService(cursor)
-    if not service.deactivate_connector(connector_id):
-        raise HTTPException(status_code=404, detail="连接器不存在")
-    return {"message": "停用成功"}
+    try:
+        if not service.deactivate_connector(connector_id):
+            logger.warning(
+                f"Connector with ID {connector_id} not found for deactivation"
+            )
+            raise HTTPException(status_code=404, detail="连接器不存在")
+        logger.info(f"Connector with ID {connector_id} deactivated successfully")
+        return {"message": "停用成功"}
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Failed to deactivate connector {connector_id}: {str(e)}")
+        raise
 
 
 @router.post("/{connector_id}/test")
 def test_connector(connector_id: int, cursor: DictCursor = Depends(get_db_cursor)):
     """测试连接器连接"""
+    logger.info(f"Testing connector with ID: {connector_id}")
     service = ConnectorService(cursor)
-    if not service.get_connector(connector_id):
-        raise HTTPException(status_code=404, detail="连接器不存在")
+    try:
+        if not service.get_connector(connector_id):
+            logger.warning(f"Connector with ID {connector_id} not found for testing")
+            raise HTTPException(status_code=404, detail="连接器不存在")
 
-    is_connected = service.test_connector(connector_id)
-    return {"connected": is_connected}
+        is_connected = service.test_connector(connector_id)
+        logger.info(
+            f"Connector {connector_id} test result: {'connected' if is_connected else 'disconnected'}"
+        )
+        return {"connected": is_connected}
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Failed to test connector {connector_id}: {str(e)}")
+        raise
 
 
 @router.get("/stats/summary")
 def get_connector_stats(cursor: DictCursor = Depends(get_db_cursor)):
     """获取连接器统计信息"""
+    logger.info("Getting connector statistics")
     service = ConnectorService(cursor)
-    return service.get_connector_stats()
+    try:
+        stats = service.get_connector_stats()
+        logger.info(f"Retrieved connector stats: {stats}")
+        return stats
+    except Exception as e:
+        logger.error(f"Failed to get connector stats: {str(e)}")
+        raise
 
 
 @router.get("/search/{keyword}", response_model=List[ConnectorResponse])
 def search_connectors(keyword: str, cursor: DictCursor = Depends(get_db_cursor)):
     """搜索连接器"""
+    logger.info(f"Searching connectors with keyword: {keyword}")
     service = ConnectorService(cursor)
-    return service.search_connectors(keyword)
+    try:
+        results = service.search_connectors(keyword)
+        logger.info(f"Found {len(results)} connectors matching keyword '{keyword}'")
+        return results
+    except Exception as e:
+        logger.error(f"Failed to search connectors with keyword '{keyword}': {str(e)}")
+        raise

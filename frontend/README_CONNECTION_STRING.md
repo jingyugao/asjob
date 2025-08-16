@@ -16,13 +16,13 @@ mysql://username:password@host:port/database
 ### 示例
 ```bash
 # 基本连接
-mysql://root:password@localhost:3306/asjob
+mysql://root:password@localhost:3306/chatjob
 
 # 特殊字符密码
-mysql://root:Str0ngP@ssw0rd!@localhost:3306/asjob
+mysql://root:Str0ngP@ssw0rd!@localhost:3306/chatjob
 
 # 无密码连接
-mysql://root@localhost:3306/asjob
+mysql://root@localhost:3306/chatjob
 
 # 自定义端口
 mysql://user:pass@db.example.com:3307/prod_db
@@ -115,7 +115,7 @@ mysql://admin:secret@prod-db.com/database
 2. **协议支持**: 目前只支持MySQL协议
 3. **特殊字符**: 密码中的特殊字符会被正确解析
 4. **端口默认值**: 如果不指定端口，默认使用3306
-5. **数据库默认值**: 如果不指定数据库，默认使用"asjob"
+5. **数据库默认值**: 如果不指定数据库，默认使用"chatjob"
 
 ## 故障排除
 

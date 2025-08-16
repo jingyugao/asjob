@@ -27,7 +27,7 @@ def test_add_connection():
         "port": 3306,
         "username": "root",
         "password": "Str0ngP@ssw0rd!",
-        "database": "asjob",
+        "database": "chatjob",
         "db_type": "mysql",
     }
 

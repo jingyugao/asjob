@@ -8,7 +8,7 @@ class DatabaseConfig(BaseSettings):
     """数据库配置"""
 
     # 连接字符串配置
-    mysql_dns: str = "mysql://root:@localhost:3306/asjob"
+    mysql_dns: str = "mysql://root:@localhost:3306/chatjob"
 
     # 兼容性配置（可选）
     host: Optional[str] = None
@@ -30,12 +30,12 @@ class DatabaseConfig(BaseSettings):
         # 如果提供了完整的连接字符串，直接使用
         if self.mysql_dns:
             # 确保连接字符串包含数据库名
-            if "/asjob" not in self.mysql_dns:
+            if "/chatjob" not in self.mysql_dns:
                 # 如果没有数据库名，添加默认数据库
                 if self.mysql_dns.endswith("/"):
-                    return f"{self.mysql_dns}asjob"
+                    return f"{self.mysql_dns}chatjob"
                 else:
-                    return f"{self.mysql_dns}/asjob"
+                    return f"{self.mysql_dns}/chatjob"
             return self.mysql_dns
 
         # 兼容性：使用单独的配置项构建URL
@@ -62,7 +62,7 @@ class DatabaseConfig(BaseSettings):
             port = parsed.port or 3306
 
             # 提取数据库名
-            database = parsed.path.lstrip("/") or "asjob"
+            database = parsed.path.lstrip("/") or "chatjob"
 
             return {
                 "host": host,
