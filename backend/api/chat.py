@@ -1,6 +1,6 @@
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Body
 from pymysql.cursors import DictCursor
-from typing import Dict, Any
+from typing import Dict, Any, Optional
 from backend.database.session import get_db_cursor, create_tables, db_connection
 from backend.api.model.chat import (
     ChatReq,
@@ -56,7 +56,7 @@ def ensure_tables():
                 role VARCHAR(32) NOT NULL,
                 content LONGTEXT NOT NULL,
                 name VARCHAR(128) NULL,
-                tool_call JSON NULL,
+                tool_call LONGTEXT NULL,
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                 FOREIGN KEY (conversation_id) REFERENCES conversations(id) ON DELETE CASCADE
             ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
@@ -65,15 +65,17 @@ def ensure_tables():
 
 
 @router.post("/conversations", response_model=ConversationRsp)
-def create_conversation(
-    req: ConversationCreateReq, cursor: DictCursor = Depends(get_db_cursor)
-):
-    ensure_tables()
-    cursor.execute("INSERT INTO conversations (title) VALUES (%s)", (req.title,))
-    conv_id = cursor.lastrowid
-    cursor.execute("SELECT * FROM conversations WHERE id=%s", (conv_id,))
-    row = cursor.fetchone()
-    return ConversationRsp(**row)
+def create_conversation(cursor: DictCursor = Depends(get_db_cursor)):
+    try:
+        ensure_tables()
+        cursor.execute("INSERT INTO conversations (title) VALUES (%s)", (None,))
+        conv_id = cursor.lastrowid
+        cursor.execute("SELECT * FROM conversations WHERE id=%s", (conv_id,))
+        row = cursor.fetchone()
+        return ConversationRsp(**row)
+    except Exception as e:
+        logger.exception(f"create_conversation error: {e}")
+        raise HTTPException(status_code=500, detail=f"创建会话失败: {e}")
 
 
 @router.get("/conversations/{conversation_id}", response_model=ConversationRsp)

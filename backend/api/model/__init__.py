@@ -5,6 +5,8 @@ from .connector import (
     MessageRsp,
     TestConnectorRsp,
     StatsSummaryRsp,
+    ParseConnectorReq,
+    ParseConnectorRsp,
 )
 from .knowledge import (
     KnowledgeCreateReq,
@@ -26,6 +28,8 @@ __all__ = [
     "MessageRsp",
     "TestConnectorRsp",
     "StatsSummaryRsp",
+    "ParseConnectorReq",
+    "ParseConnectorRsp",
     "KnowledgeCreateReq",
     "KnowledgeUpdateReq",
     "KnowledgeRsp",
