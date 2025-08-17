@@ -9,6 +9,7 @@ import logging
 
 from backend.infra.connectors import MySQLConnector, DorisConnector
 from backend.api import api_router
+from backend.scheduler.manager import scheduler_manager
 
 # 全局日志配置（需在获取任何 logger 之前执行）
 LOG_LEVEL = os.getenv("LOG_LEVEL", "INFO").upper()
@@ -271,6 +272,14 @@ def add_connection(connection: DatabaseConnection):
     except Exception as e:
         logger.error(f"API: Failed to add database connection: {str(e)}")
         raise
+
+
+@app.on_event("startup")
+def on_startup():
+    try:
+        scheduler_manager.start()
+    except Exception as e:
+        logger.error(f"Failed to start scheduler: {e}")
 
 
 @app.get("/api/connections")

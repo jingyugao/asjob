@@ -197,6 +197,53 @@ def create_tables():
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
         """
         cursor.execute(create_knowledge_table)
+        create_job_templates_table = """
+        CREATE TABLE IF NOT EXISTS job_templates (
+            id INT AUTO_INCREMENT PRIMARY KEY,
+            name VARCHAR(255) NOT NULL UNIQUE,
+            description TEXT NULL,
+            template_type VARCHAR(50) NOT NULL DEFAULT 'db_query',
+            default_config JSON NOT NULL,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+        """
+        cursor.execute(create_job_templates_table)
+
+        create_scheduled_jobs_table = """
+        CREATE TABLE IF NOT EXISTS scheduled_jobs (
+            id INT AUTO_INCREMENT PRIMARY KEY,
+            name VARCHAR(255) NOT NULL,
+            template_id INT NOT NULL,
+            schedule_type VARCHAR(20) NOT NULL DEFAULT 'cron',
+            cron_expression VARCHAR(255) NULL,
+            interval_seconds INT NULL,
+            is_active BOOLEAN DEFAULT TRUE,
+            next_run_time TIMESTAMP NULL,
+            override_config JSON NULL,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+            FOREIGN KEY (template_id) REFERENCES job_templates(id) ON DELETE CASCADE
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+        """
+        cursor.execute(create_scheduled_jobs_table)
+
+        create_job_runs_table = """
+        CREATE TABLE IF NOT EXISTS job_runs (
+            id INT AUTO_INCREMENT PRIMARY KEY,
+            job_id INT NOT NULL,
+            status VARCHAR(20) NOT NULL,
+            started_at TIMESTAMP NULL,
+            finished_at TIMESTAMP NULL,
+            duration_ms INT NULL,
+            rows_affected INT NULL,
+            result LONGTEXT NULL,
+            error LONGTEXT NULL,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (job_id) REFERENCES scheduled_jobs(id) ON DELETE CASCADE
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+        """
+        cursor.execute(create_job_runs_table)
 
 
 def get_connection_info():
