@@ -1,5 +1,6 @@
 from pydantic import BaseModel, Field
 from typing import List, Optional, Dict, Any
+from datetime import datetime
 
 
 class ChatReq(BaseModel):
@@ -24,8 +25,8 @@ class ConversationCreateReq(BaseModel):
 class ConversationRsp(BaseModel):
     id: int
     title: Optional[str] = None
-    created_at: Optional[str] = None
-    updated_at: Optional[str] = None
+    created_at: Optional[datetime] = None
+    updated_at: Optional[datetime] = None
 
 
 class MessageRsp(BaseModel):

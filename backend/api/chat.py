@@ -1,7 +1,15 @@
 from fastapi import APIRouter, Depends, HTTPException, Body
 from pymysql.cursors import DictCursor
 from typing import Dict, Any, Optional
-from backend.database.session import get_db_cursor, create_tables, db_connection
+from backend.database.session import get_db_cursor
+from backend.database.dao.chat import (
+    ensure_tables as ensure_chat_tables,
+    create_conversation as dao_create_conversation,
+    get_conversation as dao_get_conversation,
+    insert_message as dao_insert_message,
+    list_messages_by_conversation as dao_list_messages_by_conversation,
+    list_messages_for_response as dao_list_messages_for_response,
+)
 from backend.api.model.chat import (
     ChatReq,
     ChatRsp,
@@ -35,43 +43,15 @@ def list_tools() -> Dict[str, Any]:
 
 
 def ensure_tables():
-    # 复用现有入口，追加聊天表
-    create_tables()
-    with db_connection.get_cursor() as cursor:
-        cursor.execute(
-            """
-            CREATE TABLE IF NOT EXISTS conversations (
-                id INT AUTO_INCREMENT PRIMARY KEY,
-                title VARCHAR(255) NULL,
-                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
-            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-            """
-        )
-        cursor.execute(
-            """
-            CREATE TABLE IF NOT EXISTS messages (
-                id INT AUTO_INCREMENT PRIMARY KEY,
-                conversation_id INT NOT NULL,
-                role VARCHAR(32) NOT NULL,
-                content LONGTEXT NOT NULL,
-                name VARCHAR(128) NULL,
-                tool_call LONGTEXT NULL,
-                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                FOREIGN KEY (conversation_id) REFERENCES conversations(id) ON DELETE CASCADE
-            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-            """
-        )
+    ensure_chat_tables()
 
 
 @router.post("/conversations", response_model=ConversationRsp)
 def create_conversation(cursor: DictCursor = Depends(get_db_cursor)):
     try:
         ensure_tables()
-        cursor.execute("INSERT INTO conversations (title) VALUES (%s)", (None,))
-        conv_id = cursor.lastrowid
-        cursor.execute("SELECT * FROM conversations WHERE id=%s", (conv_id,))
-        row = cursor.fetchone()
+        conv_id = dao_create_conversation(cursor, None)
+        row = dao_get_conversation(cursor, conv_id)
         return ConversationRsp(**row)
     except Exception as e:
         logger.exception(f"create_conversation error: {e}")
@@ -81,8 +61,7 @@ def create_conversation(cursor: DictCursor = Depends(get_db_cursor)):
 @router.get("/conversations/{conversation_id}", response_model=ConversationRsp)
 def get_conversation(conversation_id: int, cursor: DictCursor = Depends(get_db_cursor)):
     ensure_tables()
-    cursor.execute("SELECT * FROM conversations WHERE id=%s", (conversation_id,))
-    row = cursor.fetchone()
+    row = dao_get_conversation(cursor, conversation_id)
     if not row:
         raise HTTPException(status_code=404, detail="会话不存在")
     return ConversationRsp(**row)
@@ -91,20 +70,12 @@ def get_conversation(conversation_id: int, cursor: DictCursor = Depends(get_db_c
 @router.get("/conversations/{conversation_id}/messages")
 def list_messages(conversation_id: int, cursor: DictCursor = Depends(get_db_cursor)):
     ensure_tables()
-    cursor.execute(
-        "SELECT * FROM messages WHERE conversation_id=%s ORDER BY id",
-        (conversation_id,),
-    )
-    rows = cursor.fetchall()
+    rows = dao_list_messages_by_conversation(cursor, conversation_id)
     return rows
 
 
 def _load_history(conversation_id: int, cursor: DictCursor):
-    cursor.execute(
-        "SELECT role, content, name FROM messages WHERE conversation_id=%s ORDER BY id",
-        (conversation_id,),
-    )
-    rows = cursor.fetchall()
+    rows = dao_list_messages_by_conversation(cursor, conversation_id)
     lc_messages = []
     for r in rows:
         role = r["role"]
@@ -134,17 +105,7 @@ def _save_message(
     name: Optional[str] = None,
     tool_call: Optional[TypingDict[str, Any]] = None,
 ) -> int:
-    cursor.execute(
-        "INSERT INTO messages (conversation_id, role, content, name, tool_call) VALUES (%s,%s,%s,%s,%s)",
-        (
-            conversation_id,
-            role,
-            content,
-            name,
-            json.dumps(tool_call) if tool_call else None,
-        ),
-    )
-    return cursor.lastrowid
+    return dao_insert_message(cursor, conversation_id, role, content, name, tool_call)
 
 
 @router.post("/tools")
@@ -167,8 +128,7 @@ def chat(req: ChatReq, cursor: DictCursor = Depends(get_db_cursor)):
     ensure_tables()
     conversation_id = req.conversation_id
     if not conversation_id:
-        cursor.execute("INSERT INTO conversations (title) VALUES (%s)", (None,))
-        conversation_id = cursor.lastrowid
+        conversation_id = dao_create_conversation(cursor, None)
 
     # 保存用户消息
     _save_message(cursor, conversation_id, "user", req.content)
@@ -231,11 +191,7 @@ def chat(req: ChatReq, cursor: DictCursor = Depends(get_db_cursor)):
     _save_message(cursor, conversation_id, "assistant", assistant_text)
 
     # 返回完整消息列表
-    cursor.execute(
-        "SELECT id, conversation_id, role, content, name, tool_call, created_at FROM messages WHERE conversation_id=%s ORDER BY id",
-        (conversation_id,),
-    )
-    rows = cursor.fetchall()
+    rows = dao_list_messages_for_response(cursor, conversation_id)
     # 反序列化 tool_call
     for r in rows:
         if r.get("tool_call") and isinstance(r["tool_call"], (str, bytes)):
