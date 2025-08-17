@@ -1,7 +1,9 @@
 from fastapi import APIRouter, Depends, HTTPException, Body
 from pymysql.cursors import DictCursor
 from typing import Dict, Any, Optional
+from datetime import datetime
 from backend.database.session import get_db_cursor, create_tables, db_connection
+from backend.database.model.chat import ConversationModel, MessageModel
 from backend.api.model.chat import (
     ChatReq,
     ChatRsp,
@@ -34,7 +36,27 @@ def list_tools() -> Dict[str, Any]:
     }
 
 
-def ensure_tables():
+def convert_conversation_to_response(db_model: Dict[str, Any]) -> ConversationRsp:
+    """将数据库记录转换为API响应模型"""
+    # 转换datetime到字符串
+    if db_model.get('created_at') and isinstance(db_model['created_at'], datetime):
+        db_model['created_at'] = db_model['created_at'].isoformat()
+    if db_model.get('updated_at') and isinstance(db_model['updated_at'], datetime):
+        db_model['updated_at'] = db_model['updated_at'].isoformat()
+    
+    return ConversationRsp(**db_model)
+
+
+def convert_message_to_response(db_model: Dict[str, Any]) -> MessageRsp:
+    """将消息数据库记录转换为API响应模型"""
+    # 转换datetime到字符串
+    if db_model.get('created_at') and isinstance(db_model['created_at'], datetime):
+        db_model['created_at'] = db_model['created_at'].isoformat()
+    
+    return MessageRsp(**db_model)
+
+
+def ensure_tables(cursor: DictCursor = None):
     # 复用现有入口，追加聊天表
     create_tables()
     with db_connection.get_cursor() as cursor:
@@ -72,7 +94,7 @@ def create_conversation(cursor: DictCursor = Depends(get_db_cursor)):
         conv_id = cursor.lastrowid
         cursor.execute("SELECT * FROM conversations WHERE id=%s", (conv_id,))
         row = cursor.fetchone()
-        return ConversationRsp(**row)
+        return convert_conversation_to_response(row)
     except Exception as e:
         logger.exception(f"create_conversation error: {e}")
         raise HTTPException(status_code=500, detail=f"创建会话失败: {e}")
@@ -85,7 +107,7 @@ def get_conversation(conversation_id: int, cursor: DictCursor = Depends(get_db_c
     row = cursor.fetchone()
     if not row:
         raise HTTPException(status_code=404, detail="会话不存在")
-    return ConversationRsp(**row)
+    return convert_conversation_to_response(row)
 
 
 @router.get("/conversations/{conversation_id}/messages")
