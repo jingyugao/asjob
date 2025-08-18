@@ -1,0 +1,101 @@
+version: '3.8'
+
+services:
+  # MySQL 数据库
+  mysql:
+    image: mysql:8.0
+    container_name: chatjob_mysql
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: root123456
+      MYSQL_DATABASE: chatjob
+      MYSQL_USER: chatjob
+      MYSQL_PASSWORD: chatjob123
+    volumes:
+      - mysql_data:/var/lib/mysql
+      - ./mysql/init:/docker-entrypoint-initdb.d
+    ports:
+      - "3306:3306"
+    networks:
+      - chatjob_network
+    command: --default-authentication-plugin=mysql_native_password
+
+  # Redis 缓存
+  redis:
+    image: redis:7-alpine
+    container_name: chatjob_redis
+    restart: unless-stopped
+    volumes:
+      - redis_data:/data
+    ports:
+      - "6379:6379"
+    networks:
+      - chatjob_network
+    command: redis-server --appendonly yes
+
+  # 后端服务
+  backend:
+    build:
+      context: ../backend
+      dockerfile: Dockerfile
+    container_name: chatjob_backend
+    restart: unless-stopped
+    environment:
+      - MYSQL_HOST=mysql
+      - MYSQL_PORT=3306
+      - MYSQL_DATABASE=chatjob
+      - MYSQL_USER=chatjob
+      - MYSQL_PASSWORD=chatjob123
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - REDIS_DB=0
+    volumes:
+      - ../backend:/app
+    depends_on:
+      - mysql
+      - redis
+    networks:
+      - chatjob_network
+    expose:
+      - "8000"
+
+  # 前端服务
+  frontend:
+    build:
+      context: ../frontend
+      dockerfile: Dockerfile
+    container_name: chatjob_frontend
+    restart: unless-stopped
+    volumes:
+      - ../frontend:/app
+      - /app/node_modules
+    networks:
+      - chatjob_network
+    expose:
+      - "3000"
+
+  # Nginx 反向代理
+  nginx:
+    image: nginx:alpine
+    container_name: chatjob_nginx
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf
+      - ./nginx/conf.d:/etc/nginx/conf.d
+      - ./nginx/ssl:/etc/nginx/ssl
+    depends_on:
+      - backend
+      - frontend
+    networks:
+      - chatjob_network
+
+volumes:
+  mysql_data:
+  redis_data:
+
+networks:
+  chatjob_network:
+    driver: bridge
