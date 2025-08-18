@@ -1,4 +1,4 @@
-FROM python:3.11-slim
+FROM python:3.12-slim
 
 WORKDIR /app
 
@@ -9,7 +9,8 @@ RUN apt-get update && apt-get install -y \
     && rm -rf /var/lib/apt/lists/*
 
 # 复制依赖文件
-COPY pyproject.toml uv.lock ./
+COPY pyproject.toml ./
+COPY uv.lock ./
 
 # 安装 uv 和 Python 依赖
 RUN pip install uv && \
