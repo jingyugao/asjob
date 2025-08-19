@@ -12,12 +12,14 @@ RUN apt-get update && apt-get install -y \
 COPY pyproject.toml ./
 COPY uv.lock ./
 
-# 安装 uv 和 Python 依赖
-RUN pip install uv && \
-    uv sync --frozen
+# 设置pip源为国内镜像
+RUN pip config set global.index-url https://pypi.tuna.tsinghua.edu.cn/simple/ && \
+    pip config set global.trusted-host pypi.tuna.tsinghua.edu.cn && \
+    pip install uv && \
+    uv sync --frozen --index-url https://pypi.tuna.tsinghua.edu.cn/simple/
 
 # 复制应用代码
-COPY . .
+COPY backend/ .
 
 # 暴露端口
 EXPOSE 8000

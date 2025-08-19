@@ -36,8 +36,8 @@ services:
   # 后端服务
   backend:
     build:
-      context: ../backend
-      dockerfile: Dockerfile
+      context: ..
+      dockerfile: backend/Dockerfile
     container_name: chatjob_backend
     restart: unless-stopped
     environment:
@@ -50,14 +50,14 @@ services:
       - REDIS_PORT=6379
       - REDIS_DB=0
     volumes:
-      - ../backend:/app
+      - ../backend:/app/backend
     depends_on:
       - mysql
       - redis
     networks:
       - chatjob_network
-    expose:
-      - "8000"
+    ports:
+      - "8000:8000"
 
   # 前端服务
   frontend:

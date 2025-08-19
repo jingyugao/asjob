@@ -1,20 +1,20 @@
+import logging
+import sys
+from typing import Any, Dict, List, Optional
+
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
-from typing import List, Dict, Any, Optional
-import sys
-import os
-import logging
 
-
-from backend.infra.connectors import MySQLConnector, DorisConnector
 from backend.api import api_router
+from backend.config import Config
+from backend.infra.connectors import DorisConnector, MySQLConnector
 from backend.scheduler.manager import scheduler_manager
 
 # 全局日志配置（需在获取任何 logger 之前执行）
-LOG_LEVEL = os.getenv("LOG_LEVEL", "INFO").upper()
-LOG_FORMAT = "%(asctime)s [%(levelname)s] %(name)s: %(message)s"
-DATE_FORMAT = "%Y-%m-%d %H:%M:%S"
+LOG_LEVEL = Config.get_log_level()
+LOG_FORMAT = Config.get_log_format()
+DATE_FORMAT = Config.get_log_date_format()
 logging.basicConfig(
     level=getattr(logging, LOG_LEVEL, logging.INFO),
     format=LOG_FORMAT,
@@ -37,6 +37,24 @@ app.add_middleware(
 
 # 注册API路由
 app.include_router(api_router)
+
+from backend.api.model.connector import ConnectorCreateReq, ConnectorUpdateReq
+
+# 兼容性端点 - 映射旧API到新API结构
+from backend.database.service.connector_service import ConnectorService
+from backend.database.session import get_db_cursor
+
+# 启动时创建数据库表
+try:
+    from backend.database.session import create_tables
+
+    create_tables()
+    logger.info("Database tables created successfully")
+except Exception as e:
+    logger.error(f"Failed to create database tables: {e}")
+    import traceback
+
+    logger.error(f"Traceback: {traceback.format_exc()}")
 
 
 # 数据模型
@@ -264,114 +282,390 @@ def read_root():
 
 @app.post("/api/connections")
 def add_connection(connection: DatabaseConnection):
-    """添加数据库连接"""
+    """添加数据库连接 - 兼容性端点"""
     try:
-        success = db_manager.add_connection(connection)
-        logger.info(f"API: Database connection '{connection.name}' added successfully")
-        return {"message": "Connection added successfully", "connection": connection}
+        # 转换为新的API模型
+        connector_req = ConnectorCreateReq(
+            name=connection.name,
+            db_type=connection.db_type,
+            host=connection.host,
+            port=connection.port,
+            username=connection.username,
+            password=connection.password,
+            database=connection.database,
+            description=f"Migrated from old API - {connection.db_type} connection",
+            is_active=True,
+        )
+
+        # 使用新的服务
+        cursor = next(get_db_cursor())
+        service = ConnectorService(cursor)
+        result = service.create_connector(connector_req.dict())
+
+        logger.info(
+            f"API: Database connection '{connection.name}' added successfully via compatibility endpoint"
+        )
+        return {"message": "Connection added successfully", "connection": result}
     except Exception as e:
-        logger.error(f"API: Failed to add database connection: {str(e)}")
+        logger.error(
+            f"API: Failed to add database connection via compatibility endpoint: {str(e)}"
+        )
         raise
 
 
 @app.on_event("startup")
 def on_startup():
     try:
+        # 创建数据库表
+        logger.info("Starting database table creation...")
+        from backend.database.session import create_tables
+
+        create_tables()
+        logger.info("Database tables created successfully")
+
+        # 等待一下确保表创建完成
+        import time
+
+        time.sleep(1)
+
+        # 启动调度器
+        logger.info("Starting scheduler...")
         scheduler_manager.start()
+        logger.info("Scheduler started successfully")
     except Exception as e:
         logger.error(f"Failed to start scheduler: {e}")
+        import traceback
+
+        logger.error(f"Traceback: {traceback.format_exc()}")
 
 
 @app.get("/api/connections")
 def get_connections():
-    """获取所有数据库连接"""
+    """获取所有数据库连接 - 兼容性端点"""
     try:
-        connections = db_manager.get_connections()
-        logger.info(f"API: Retrieved {len(connections)} database connections")
+        # 使用新的服务
+        cursor = next(get_db_cursor())
+        service = ConnectorService(cursor)
+        connectors = service.list_connectors(0, 1000)  # 获取所有连接器
+
+        # 转换为旧API格式
+        connections = []
+        for conn in connectors:
+            connections.append(
+                DatabaseConnection(
+                    name=conn.name,
+                    host=conn.host,
+                    port=conn.port,
+                    username=conn.username,
+                    password=conn.password,
+                    database=conn.database_name,  # 使用 database_name 字段
+                    db_type=conn.db_type,
+                )
+            )
+
+        logger.info(
+            f"API: Retrieved {len(connections)} database connections via compatibility endpoint"
+        )
         return connections
     except Exception as e:
-        logger.error(f"API: Failed to get database connections: {str(e)}")
+        logger.error(
+            f"API: Failed to get database connections via compatibility endpoint: {str(e)}"
+        )
         raise
 
 
 @app.delete("/api/connections/{name}")
 def remove_connection(name: str):
-    """删除数据库连接"""
+    """删除数据库连接 - 兼容性端点"""
     try:
-        success = db_manager.remove_connection(name)
+        # 使用新的服务
+        cursor = next(get_db_cursor())
+        service = ConnectorService(cursor)
+
+        # 先查找连接器ID
+        connectors = service.list_connectors(0, 1000)
+        connector_id = None
+        for conn in connectors:
+            if conn.name == name:
+                connector_id = conn.id
+                break
+
+        if not connector_id:
+            logger.warning(f"API: Connection '{name}' not found for deletion")
+            raise HTTPException(status_code=404, detail="Connection not found")
+
+        # 删除连接器
+        success = service.delete_connector(connector_id)
         if success:
-            logger.info(f"API: Database connection '{name}' removed successfully")
+            logger.info(
+                f"API: Database connection '{name}' removed successfully via compatibility endpoint"
+            )
             return {"message": "Connection removed successfully"}
         else:
-            logger.warning(f"API: Attempted to remove non-existent connection '{name}'")
-            raise HTTPException(status_code=404, detail="Connection not found")
+            logger.warning(f"API: Failed to delete connection '{name}'")
+            raise HTTPException(status_code=500, detail="Failed to delete connection")
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(f"API: Failed to remove database connection '{name}': {str(e)}")
+        logger.error(
+            f"API: Failed to remove database connection '{name}' via compatibility endpoint: {str(e)}"
+        )
         raise
 
 
 @app.get("/api/connections/{name}/tables")
 def get_tables(name: str):
-    """获取指定连接的所有表"""
+    """获取指定连接的所有表 - 兼容性端点"""
     try:
-        tables = db_manager.get_tables(name)
-        logger.info(f"API: Retrieved {len(tables)} tables from connection '{name}'")
+        # 使用新的服务
+        cursor = next(get_db_cursor())
+        service = ConnectorService(cursor)
+
+        # 先查找连接器
+        connectors = service.list_connectors(0, 1000)
+        connector = None
+        for conn in connectors:
+            if conn.name == name:
+                connector = conn
+                break
+
+        if not connector:
+            logger.warning(f"API: Connection '{name}' not found for getting tables")
+            raise HTTPException(status_code=404, detail="Connection not found")
+
+        # 创建连接器实例并获取表
+        if connector.db_type == "mysql":
+            from backend.infra.connectors import MySQLConnector
+
+            db_connector = MySQLConnector(
+                host=connector.host,
+                port=connector.port,
+                username=connector.username,
+                password=connector.password,
+                database=connector.database_name,  # 使用 database_name 字段
+            )
+        elif connector.db_type == "doris":
+            from backend.infra.connectors import DorisConnector
+
+            db_connector = DorisConnector(
+                host=connector.host,
+                port=connector.port,
+                username=connector.username,
+                password=connector.password,
+                database=connector.database_name,  # 使用 database_name 字段
+            )
+        else:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Unsupported database type: {connector.db_type}",
+            )
+
+        tables = db_connector.get_tables()
+        logger.info(
+            f"API: Retrieved {len(tables)} tables from connection '{name}' via compatibility endpoint"
+        )
         return {"tables": tables}
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(f"API: Failed to get tables from connection '{name}': {str(e)}")
+        logger.error(
+            f"API: Failed to get tables from connection '{name}' via compatibility endpoint: {str(e)}"
+        )
         raise
 
 
 @app.get("/api/connections/{name}/tables/{table_name}/structure")
 def get_table_structure(name: str, table_name: str):
-    """获取指定表的结构"""
+    """获取指定表的结构 - 兼容性端点"""
     try:
-        structure = db_manager.get_table_structure(name, table_name)
+        # 使用新的服务
+        cursor = next(get_db_cursor())
+        service = ConnectorService(cursor)
+
+        # 先查找连接器
+        connectors = service.list_connectors(0, 1000)
+        connector = None
+        for conn in connectors:
+            if conn.name == name:
+                connector = conn
+                break
+
+        if not connector:
+            logger.warning(
+                f"API: Connection '{name}' not found for getting table structure"
+            )
+            raise HTTPException(status_code=404, detail="Connection not found")
+
+        # 创建连接器实例并获取表结构
+        if connector.db_type == "mysql":
+            from backend.infra.connectors import MySQLConnector
+
+            db_connector = MySQLConnector(
+                host=connector.host,
+                port=connector.port,
+                username=connector.username,
+                password=connector.password,
+                database=connector.database_name,  # 使用 database_name 字段
+            )
+        elif connector.db_type == "doris":
+            from backend.infra.connectors import DorisConnector
+
+            db_connector = DorisConnector(
+                host=connector.host,
+                port=connector.port,
+                username=connector.username,
+                password=connector.password,
+                database=connector.database_name,  # 使用 database_name 字段
+            )
+        else:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Unsupported database type: {connector.db_type}",
+            )
+
+        columns = db_connector.get_table_structure(table_name)
+        structure = TableInfo(name=table_name, columns=columns)
+
         logger.info(
-            f"API: Retrieved table structure for '{table_name}' from connection '{name}'"
+            f"API: Retrieved table structure for '{table_name}' from connection '{name}' via compatibility endpoint"
         )
         return structure
     except HTTPException:
         raise
     except Exception as e:
         logger.error(
-            f"API: Failed to get table structure for '{table_name}' from connection '{name}': {str(e)}"
+            f"API: Failed to get table structure for '{table_name}' from connection '{name}' via compatibility endpoint: {str(e)}"
         )
         raise
 
 
 @app.post("/api/connections/{name}/query")
 def execute_query(name: str, query: SQLQuery):
-    """执行SQL查询"""
+    """执行SQL查询 - 兼容性端点"""
     try:
-        result = db_manager.execute_query(name, query)
-        logger.info(f"API: Query executed successfully on connection '{name}'")
-        return result
-    except HTTPException:
-        raise
-    except Exception as e:
-        logger.error(f"API: Failed to execute query on connection '{name}': {str(e)}")
-        raise
+        # 使用新的服务
+        cursor = next(get_db_cursor())
+        service = ConnectorService(cursor)
 
+        # 先查找连接器
+        connectors = service.list_connectors(0, 1000)
+        connector = None
+        for conn in connectors:
+            if conn.name == name:
+                connector = conn
+                break
 
-@app.get("/api/connections/{name}/tables/{table_name}/data")
-def get_table_data(name: str, table_name: str, limit: int = 100, offset: int = 0):
-    """获取表数据"""
-    try:
-        result = db_manager.get_table_data(name, table_name, limit, offset)
+        if not connector:
+            logger.warning(f"API: Connection '{name}' not found for executing query")
+            raise HTTPException(status_code=404, detail="Connection not found")
+
+        # 创建连接器实例并执行查询
+        if connector.db_type == "mysql":
+            from backend.infra.connectors import MySQLConnector
+
+            db_connector = MySQLConnector(
+                host=connector.host,
+                port=connector.port,
+                username=connector.username,
+                password=connector.password,
+                database=connector.database_name,  # 使用 database_name 字段
+            )
+        elif connector.db_type == "doris":
+            from backend.infra.connectors import DorisConnector
+
+            db_connector = DorisConnector(
+                host=connector.host,
+                port=connector.port,
+                username=connector.username,
+                password=connector.password,
+                database=connector.database_name,  # 使用 database_name 字段
+            )
+        else:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Unsupported database type: {connector.db_type}",
+            )
+
+        data = db_connector.execute_query(query.sql, query.params)
+        result = QueryResult(data=data, total=len(data), sql=query.sql)
+
         logger.info(
-            f"API: Retrieved table data from '{table_name}' on connection '{name}'"
+            f"API: Query executed successfully on connection '{name}' via compatibility endpoint"
         )
         return result
     except HTTPException:
         raise
     except Exception as e:
         logger.error(
-            f"API: Failed to get table data from '{table_name}' on connection '{name}': {str(e)}"
+            f"API: Failed to execute query on connection '{name}' via compatibility endpoint: {str(e)}"
+        )
+        raise
+
+
+@app.get("/api/connections/{name}/tables/{table_name}/data")
+def get_table_data(name: str, table_name: str, limit: int = 100, offset: int = 0):
+    """获取表数据 - 兼容性端点"""
+    try:
+        # 使用新的服务
+        cursor = next(get_db_cursor())
+        service = ConnectorService(cursor)
+
+        # 先查找连接器
+        connectors = service.list_connectors(0, 1000)
+        connector = None
+        for conn in connectors:
+            if conn.name == name:
+                connector = conn
+                break
+
+        if not connector:
+            logger.warning(f"API: Connection '{name}' not found for getting table data")
+            raise HTTPException(status_code=404, detail="Connection not found")
+
+        # 创建连接器实例并获取表数据
+        if connector.db_type == "mysql":
+            from backend.infra.connectors import MySQLConnector
+
+            db_connector = MySQLConnector(
+                host=connector.host,
+                port=connector.port,
+                username=connector.username,
+                password=connector.password,
+                database=connector.database_name,  # 使用 database_name 字段
+            )
+        elif connector.db_type == "doris":
+            from backend.infra.connectors import DorisConnector
+
+            db_connector = DorisConnector(
+                host=connector.host,
+                port=connector.port,
+                username=connector.username,
+                password=connector.password,
+                database=connector.database_name,  # 使用 database_name 字段
+            )
+        else:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Unsupported database type: {connector.db_type}",
+            )
+
+        data = db_connector.get_table_data(table_name, limit, offset)
+        total = db_connector.get_table_count(table_name)
+        result = QueryResult(
+            data=data,
+            total=total,
+            sql=f"SELECT * FROM {table_name} LIMIT {limit} OFFSET {offset}",
+        )
+
+        logger.info(
+            f"API: Retrieved table data from '{table_name}' on connection '{name}' via compatibility endpoint"
+        )
+        return result
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(
+            f"API: Failed to get table data from '{table_name}' on connection '{name}' via compatibility endpoint: {str(e)}"
         )
         raise
 
@@ -386,4 +680,4 @@ def health_check():
 if __name__ == "__main__":
     import uvicorn
 
-    uvicorn.run(app, host="0.0.0.0", port=8000)
+    uvicorn.run(app, host=Config.get_app_host(), port=Config.get_app_port())
