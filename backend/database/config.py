@@ -1,6 +1,7 @@
 import os
 
 from pydantic import BaseModel
+
 from backend.config import Config
 
 

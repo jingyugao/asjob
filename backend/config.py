@@ -1,6 +1,7 @@
 import os
 from typing import Optional
 
+
 class Config:
     """统一配置管理类"""
     
