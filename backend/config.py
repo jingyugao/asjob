@@ -1,139 +1,156 @@
 import os
+from pathlib import Path
 from typing import Optional
 
+from pydantic import Field
+from pydantic_settings import BaseSettings, SettingsConfigDict
 
-class Config:
-    """统一配置管理类"""
-    
-    # 数据库配置
-    @staticmethod
-    def get_mysql_host() -> str:
-        return os.getenv("MYSQL_HOST", "localhost")
-    
-    @staticmethod
-    def get_mysql_port() -> int:
-        return int(os.getenv("MYSQL_PORT", "3306"))
-    
-    @staticmethod
-    def get_mysql_user() -> str:
-        return os.getenv("MYSQL_USER", "root")
-    
-    @staticmethod
-    def get_mysql_password() -> str:
-        return os.getenv("MYSQL_PASSWORD", "password")
-    
-    @staticmethod
-    def get_mysql_database() -> str:
-        return os.getenv("MYSQL_DATABASE", "test_db")
-    
-    @staticmethod
-    def get_mysql_config() -> dict:
+# 获取项目根目录
+PROJECT_ROOT = Path(__file__).parent.parent
+
+
+# 手动加载.env文件
+def load_env_file():
+    """手动加载.env文件"""
+    env_file_path = PROJECT_ROOT / ".env"
+    if env_file_path.exists():
+        with open(env_file_path, "r", encoding="utf-8") as f:
+            for line in f:
+                line = line.strip()
+                if line and not line.startswith("#") and "=" in line:
+                    key, value = line.split("=", 1)
+                    os.environ[key] = value
+
+
+# 在导入配置类之前加载环境变量
+load_env_file()
+
+# 验证环境变量是否被加载
+print(
+    f"环境变量加载状态: LLM_GOOGLE_API_KEY = {os.getenv('LLM_GOOGLE_API_KEY', '未设置')}"
+)
+
+
+class DatabaseSettings(BaseSettings):
+    """数据库配置"""
+
+    host: str = "localhost"
+    port: int = 3306
+    user: str = "root"
+    password: str = "password"
+    database: str = "test_db"
+
+    model_config = SettingsConfigDict(env_prefix="MYSQL_", extra="ignore")
+
+    @property
+    def config_dict(self) -> dict:
         return {
-            "host": Config.get_mysql_host(),
-            "port": Config.get_mysql_port(),
-            "username": Config.get_mysql_user(),
-            "password": Config.get_mysql_password(),
-            "database": Config.get_mysql_database(),
-        }
-    
-    # Redis配置
-    @staticmethod
-    def get_redis_host() -> str:
-        return os.getenv("REDIS_HOST", "localhost")
-    
-    @staticmethod
-    def get_redis_port() -> int:
-        return int(os.getenv("REDIS_PORT", "6379"))
-    
-    @staticmethod
-    def get_redis_db() -> int:
-        return int(os.getenv("REDIS_DB", "0"))
-    
-    @staticmethod
-    def get_redis_config() -> dict:
-        return {
-            "host": Config.get_redis_host(),
-            "port": Config.get_redis_port(),
-            "db": Config.get_redis_db(),
-        }
-    
-    # 日志配置
-    @staticmethod
-    def get_log_level() -> str:
-        return os.getenv("LOG_LEVEL", "INFO").upper()
-    
-    @staticmethod
-    def get_log_format() -> str:
-        return "%(asctime)s [%(levelname)s] %(name)s: %(message)s"
-    
-    @staticmethod
-    def get_log_date_format() -> str:
-        return "%Y-%m-%d %H:%M:%S"
-    
-    # LLM配置
-    @staticmethod
-    def get_llm_model() -> str:
-        return os.getenv("LLM_MODEL", "llama2")
-    
-    @staticmethod
-    def get_llm_base_url() -> str:
-        return os.getenv("LLM_BASE_URL", "http://localhost:11434")
-    
-    @staticmethod
-    def get_llm_temperature() -> float:
-        return float(os.getenv("LLM_TEMPERATURE", "0.7"))
-    
-    @staticmethod
-    def get_llm_timeout() -> int:
-        return int(os.getenv("LLM_TIMEOUT", "120"))
-    
-    @staticmethod
-    def get_llm_config() -> dict:
-        return {
-            "model": Config.get_llm_model(),
-            "base_url": Config.get_llm_base_url(),
-            "temperature": Config.get_llm_temperature(),
-            "timeout": Config.get_llm_timeout(),
-        }
-    
-    # 应用配置
-    @staticmethod
-    def get_app_host() -> str:
-        return os.getenv("APP_HOST", "0.0.0.0")
-    
-    @staticmethod
-    def get_app_port() -> int:
-        return int(os.getenv("APP_PORT", "8000"))
-    
-    @staticmethod
-    def get_app_debug() -> bool:
-        return os.getenv("APP_DEBUG", "false").lower() == "true"
-    
-    @staticmethod
-    def get_app_config() -> dict:
-        return {
-            "host": Config.get_app_host(),
-            "port": Config.get_app_port(),
-            "debug": Config.get_app_debug(),
-        }
-    
-    # 测试配置
-    @staticmethod
-    def get_test_batch_size() -> int:
-        return int(os.getenv("TEST_BATCH_SIZE", "100"))
-    
-    @staticmethod
-    def get_test_table_name() -> str:
-        return os.getenv("TEST_TABLE_NAME", "test_users")
-    
-    @staticmethod
-    def get_test_config() -> dict:
-        return {
-            "batch_size": Config.get_test_batch_size(),
-            "table_name": Config.get_test_table_name(),
+            "host": self.host,
+            "port": self.port,
+            "username": self.user,
+            "password": self.password,
+            "database": self.database,
         }
 
-# 兼容性配置（保持向后兼容）
-MYSQL_CONFIG = Config.get_mysql_config()
-REDIS_CONFIG = Config.get_redis_config()
-TEST_CONFIG = Config.get_test_config()
+
+class RedisSettings(BaseSettings):
+    """Redis配置"""
+
+    host: str = "localhost"
+    port: int = 6379
+    db: int = 0
+
+    model_config = SettingsConfigDict(env_prefix="REDIS_", extra="ignore")
+
+    @property
+    def config_dict(self) -> dict:
+        return {
+            "host": self.host,
+            "port": self.port,
+            "db": self.db,
+        }
+
+
+class LogSettings(BaseSettings):
+    """日志配置"""
+
+    level: str = "INFO"
+    format: str = "%(asctime)s [%(levelname)s] %(name)s: %(message)s"
+    date_format: str = "%Y-%m-%d %H:%M:%S"
+
+    model_config = SettingsConfigDict(env_prefix="LOG_", extra="ignore")
+
+
+class LLMSettings(BaseSettings):
+    """LLM配置"""
+
+    model: str = Field(default="gemini-pro", alias="LLM_MODEL")
+    api_key: str = Field(default="", alias="LLM_GOOGLE_API_KEY")
+    temperature: float = Field(default=0.7, alias="LLM_TEMPERATURE")
+    timeout: int = Field(default=120, alias="LLM_TIMEOUT")
+
+    model_config = SettingsConfigDict(
+        extra="ignore",
+    )
+
+    @property
+    def config_dict(self) -> dict:
+        return {
+            "model": self.model,
+            "api_key": self.api_key,
+            "temperature": self.temperature,
+            "timeout": self.timeout,
+        }
+
+
+class AppSettings(BaseSettings):
+    """应用配置"""
+
+    host: str = "0.0.0.0"
+    port: int = 8000
+    debug: bool = False
+
+    model_config = SettingsConfigDict(env_prefix="APP_", extra="ignore")
+
+    @property
+    def config_dict(self) -> dict:
+        return {
+            "host": self.host,
+            "port": self.port,
+            "debug": self.debug,
+        }
+
+
+class TestSettings(BaseSettings):
+    """测试配置"""
+
+    batch_size: int = 100
+    table_name: str = "test_users"
+
+    model_config = SettingsConfigDict(env_prefix="TEST_", extra="ignore")
+
+    @property
+    def config_dict(self) -> dict:
+        return {
+            "batch_size": self.batch_size,
+            "table_name": self.table_name,
+        }
+
+
+class Settings(BaseSettings):
+    """主配置类"""
+
+    database: DatabaseSettings = DatabaseSettings()
+    redis: RedisSettings = RedisSettings()
+    log: LogSettings = LogSettings()
+    llm: LLMSettings = LLMSettings()
+    app: AppSettings = AppSettings()
+    test: TestSettings = TestSettings()
+
+    model_config = SettingsConfigDict(
+        extra="ignore",  # 允许额外的字段
+    )
+
+
+# 创建全局配置实例
+settings = Settings()

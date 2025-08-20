@@ -7,14 +7,14 @@ from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 
 from backend.api import api_router
-from backend.config import Config
+from backend.config import settings
 from backend.infra.connectors import DorisConnector, MySQLConnector
 from backend.scheduler.manager import scheduler_manager
 
 # 全局日志配置（需在获取任何 logger 之前执行）
-LOG_LEVEL = Config.get_log_level()
-LOG_FORMAT = Config.get_log_format()
-DATE_FORMAT = Config.get_log_date_format()
+LOG_LEVEL = settings.log.level.upper()
+LOG_FORMAT = settings.log.format
+DATE_FORMAT = settings.log.date_format
 logging.basicConfig(
     level=getattr(logging, LOG_LEVEL, logging.INFO),
     format=LOG_FORMAT,
@@ -680,4 +680,4 @@ def health_check():
 if __name__ == "__main__":
     import uvicorn
 
-    uvicorn.run(app, host=Config.get_app_host(), port=Config.get_app_port())
+    uvicorn.run(app, host=settings.app.host, port=settings.app.port)
