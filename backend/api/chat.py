@@ -5,22 +5,23 @@ from typing import Any, Dict, Optional
 from fastapi import APIRouter, Body, Depends, HTTPException
 from langchain.schema import AIMessage, HumanMessage, SystemMessage
 from pymysql.cursors import DictCursor
-from typing import Dict, Any, Optional
-from backend.database.session import get_db_cursor
-from backend.database.dao.chat import (
-    ensure_tables as ensure_chat_tables,
-    create_conversation as dao_create_conversation,
-    get_conversation as dao_get_conversation,
-    insert_message as dao_insert_message,
-    list_messages_by_conversation as dao_list_messages_by_conversation,
-    list_messages_for_response as dao_list_messages_for_response,
-)
+
 from backend.api.model.chat import (
     ChatReq,
     ChatRsp,
     ConversationCreateReq,
     ConversationRsp,
     MessageRsp,
+)
+from backend.database.dao.chat import create_conversation as dao_create_conversation
+from backend.database.dao.chat import ensure_tables as ensure_chat_tables
+from backend.database.dao.chat import get_conversation as dao_get_conversation
+from backend.database.dao.chat import insert_message as dao_insert_message
+from backend.database.dao.chat import (
+    list_messages_by_conversation as dao_list_messages_by_conversation,
+)
+from backend.database.dao.chat import (
+    list_messages_for_response as dao_list_messages_for_response,
 )
 from backend.database.dao.chat_dao import ChatDAO
 from backend.database.session import create_tables, db_connection, get_db_cursor
@@ -56,6 +57,7 @@ def create_conversation(cursor: DictCursor = Depends(get_db_cursor)):
         conv_id = dao_create_conversation(cursor, None)
         row = dao_get_conversation(cursor, conv_id)
         return ConversationRsp(**row)
+    except Exception as e:
         logger.exception(f"create_conversation error: {e}")
         raise HTTPException(status_code=500, detail=f"创建会话失败: {e}")
 
@@ -66,7 +68,7 @@ def get_conversation(conversation_id: int, cursor: DictCursor = Depends(get_db_c
     row = dao_get_conversation(cursor, conversation_id)
     if not row:
         raise HTTPException(status_code=404, detail="会话不存在")
-    return ConversationRsp(**conversation.dict())
+    return ConversationRsp(**row)
 
 
 @router.get("/conversations/{conversation_id}/messages")
@@ -96,7 +98,8 @@ def _load_history(conversation_id: int, cursor: DictCursor):
     return lc_messages
 
 
-from typing import Optional, Dict as TypingDict
+from typing import Dict as TypingDict
+from typing import Optional
 
 
 def _save_message(
@@ -207,5 +210,5 @@ def chat(req: ChatReq, cursor: DictCursor = Depends(get_db_cursor)):
         assistant_message=assistant_text,
         tool_call=tool_call_info,
         tool_result=tool_result,
-        messages=messages,
+        messages=rows,
     )
