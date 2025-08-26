@@ -1,13 +1,13 @@
-import pymysql
-from pymysql.cursors import DictCursor
+import logging
+import time
 from contextlib import contextmanager
 from typing import Generator
-import time
-from .config import DatabaseConfig
-import logging
 
+import pymysql
+from pymysql.cursors import DictCursor
 
-config = DatabaseConfig()
+from .config import DATABASE_CONFIG
+
 logger = logging.getLogger("database.session")
 
 
@@ -15,7 +15,7 @@ class DatabaseConnection:
     """数据库连接管理类"""
 
     def __init__(self):
-        self.connection_params = config.connection_params
+        self.connection_params = DATABASE_CONFIG
         # 记录连接参数（注意生产环境不要记录密码）
         logger.debug(
             "准备建立MySQL连接",
@@ -246,9 +246,15 @@ def create_tables():
         cursor.execute(create_job_runs_table)
 
 
-def get_connection_info():
+def get_connection_info(self):
     """获取连接信息（用于调试）"""
+    # 构建MySQL连接字符串
+    if self.connection_params["password"]:
+        mysql_dns = f"mysql://{self.connection_params['username']}:{self.connection_params['password']}@{self.connection_params['host']}:{self.connection_params['port']}/{self.connection_params['database']}"
+    else:
+        mysql_dns = f"mysql://{self.connection_params['username']}@{self.connection_params['host']}:{self.connection_params['port']}/{self.connection_params['database']}"
+
     return {
-        "mysql_dns": config.mysql_dns,
-        "connection_params": config.connection_params,
+        "mysql_dns": mysql_dns,
+        "connection_params": self.connection_params,
     }

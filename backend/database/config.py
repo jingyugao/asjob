@@ -1,86 +1,14 @@
-from pydantic_settings import BaseSettings
-from pydantic import validator, field_validator
-from typing import Optional
-import urllib.parse
+import os
 
+from pydantic import BaseModel
 
-class DatabaseConfig(BaseSettings):
-    """数据库配置"""
+from backend.config import settings
 
-    # 连接字符串配置 - 使用正确的环境变量名
-    mysql_dns: str = "mysql://root:Str0ngP@ssw0rd!@localhost:3306/chatjob"
-
-    # 兼容性配置（可选）
-    host: Optional[str] = None
-    port: Optional[int] = None
-    username: Optional[str] = None
-    password: Optional[str] = None
-    database: Optional[str] = None
-
-    @field_validator("mysql_dns")
-    @classmethod
-    def validate_mysql_dns(cls, v):
-        """验证MySQL连接字符串格式"""
-        if not v.startswith("mysql://"):
-            raise ValueError("MySQL DNS must start with mysql://")
-        return v
-
-    @property
-    def url(self) -> str:
-        """构建数据库连接URL"""
-        # 如果提供了完整的连接字符串，直接使用
-        if self.mysql_dns:
-            # 确保连接字符串包含数据库名（更稳健地解析判断）
-            parsed = urllib.parse.urlparse(self.mysql_dns)
-            if parsed.path and parsed.path != "/":
-                return self.mysql_dns
-            # 如果没有数据库名，添加默认数据库
-            if self.mysql_dns.endswith("/"):
-                return f"{self.mysql_dns}chatjob"
-            else:
-                return f"{self.mysql_dns}/chatjob"
-
-        # 兼容性：使用单独的配置项构建URL
-        password_part = f":{self.password}" if self.password else ""
-        return f"mysql+pymysql://{self.username}{password_part}@{self.host}:{self.port}/{self.database}"
-
-    @property
-    def connection_params(self) -> dict:
-        """解析连接字符串，返回连接参数"""
-        if not self.mysql_dns:
-            return {}
-
-        # 使用urllib.parse来正确解析连接字符串
-        try:
-            # 解析连接字符串
-            parsed = urllib.parse.urlparse(self.mysql_dns)
-
-            # 提取用户名和密码
-            username = parsed.username or ""
-            password = parsed.password or ""
-
-            # 提取主机和端口
-            host = parsed.hostname or ""
-            port = parsed.port or 3306
-
-            # 提取数据库名
-            database = parsed.path.lstrip("/") or "chatjob"
-
-            return {
-                "host": host,
-                "port": port,
-                "username": username,
-                "password": password,
-                "database": database,
-            }
-        except Exception as e:
-            raise ValueError(f"Invalid MySQL DNS format: {e}")
-
-    class Config:
-        env_prefix = "DB_"
-        # 环境变量映射 - Pydantic V2 使用 model_config
-        model_config = {
-            "env_prefix": "DB_",
-            "env_file": ".env",
-            "env_file_encoding": "utf-8",
-        }
+# 数据库连接配置
+DATABASE_CONFIG = {
+    "host": settings.database.host,
+    "port": settings.database.port,
+    "username": settings.database.user,
+    "password": settings.database.password,
+    "database": settings.database.database,
+}
